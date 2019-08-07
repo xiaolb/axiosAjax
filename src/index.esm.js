@@ -1,7 +1,5 @@
-import * as createConnect from './ajax';
+import ajax from './ajax';
 
-export default {
-    createConnect,
-};
+export default ajax;
 
 export * from './ajax';

@@ -1,13 +1,29 @@
 import axios, { AxiosResponse, AxiosError, AxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import { hexMd5 } from '@util/md5';
-import { createAjaxOption, ajaxOption, emptyErrorProps } from './types';
+import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
+import topsDB from './db';
+/**
+ * @method 生成queryString
+ * @param data
+ * @return {String}
+ * @desc {foo: 'bar', search: 123}  => foo=bar&search=123
+ */
+const queryStringify = (data: any) => {
+    const ret = [];
+    for (let k in data) {
+        const value = encodeURIComponent(data[k]);
+        ret.push(`${k}=${value}`);
+    }
+    return ret.join('&');
+};
 
 const loop = function(params: any) {
     console.log(params);
 };
+let cacheDB: topsDB = null;
 // 深度继承
-export const assignDeep = function(target: any, source: any) {
+const assignDeep = function(target: any, source: any) {
     if (typeof source !== 'object' || typeof target !== 'object') Object.assign(target, source);
     else {
         for (const key in source) {
@@ -26,20 +42,21 @@ const isType = (type: string) => (obj: any) => ({}.toString.call(obj) === `[obje
 // 获取存储接口缓存的key
 const getStoreKey = (opt: ajaxOption) =>
     hexMd5(
-        `${opt.method}@${opt.baseURL}${opt.url}@ak=${opt.headers.Authorization || ''}@params=${opt.params ? JSON.stringify(opt.params) : ''}@data=${
-            opt.data ? JSON.stringify(opt.data) : ''
-        }`
+        `${opt.method}@${opt.baseURL}${opt.url}@ak=${opt.headers ? opt.headers.Authorization || '' : ''}@params=${
+            opt.params ? JSON.stringify(opt.params) : ''
+        }@data=${opt.data ? JSON.stringify(opt.data) : ''}`
     );
 // 判断接口返回数据是否相同
 const diffServiceCache = (c1: any, c2: any) => {
     if (!c1 || !c2) return false;
     let c1str = isType('String')(c1) ? c1 : JSON.stringify(c1);
     let c2str = isType('String')(c2) ? c2 : JSON.stringify(c2);
-    c1str = c1str.replace(/ServerTime[^}]+/, '');
-    c2str = c2str.replace(/ServerTime[^}]+/, '');
+    console.log(c1str);
+    console.log(c2str);
+
     return c1str === c2str;
 };
-export const isUndef = isType('Undefined');
+const isUndef = isType('Undefined');
 
 const createAjax = (option: createAjaxOption) => {
     const defaultOption = {
@@ -48,35 +65,60 @@ const createAjax = (option: createAjaxOption) => {
         loginCallback: loop,
         errorMsgHandler: loop,
         requestConfig: {},
+        projectName: '',
+        beforeRequestHandler: function(req: AxiosRequestConfig) {
+            return new Promise(function(resolve) {
+                resolve(req);
+            });
+        },
     };
     const mergeOption = {
         ...defaultOption,
         ...option,
     };
-    const preCheckCode = (response: any, opt: ajaxOption) => {
+    cacheDB = new topsDB(mergeOption.projectName);
+    const preCheckCode = async function(response: any, opt: ajaxOption) {
         mergeOption.hideLoading(opt);
+        if (response.request && response.request.responseType === 'blob') {
+            if (response.headers['content-disposition']) {
+                return Promise.resolve(response);
+            }
+            // 下载出现异常处理
+            const reader = new FileReader();
+            reader.readAsText(response.data, 'utf8');
+            reader.onload = function() {
+                if (this.result && typeof this.result === 'string' && !opt.isHandleError) {
+                    if (this.result) return mergeOption.errorMsgHandler(JSON.parse(this.result).Message);
+                } else {
+                    return Promise.reject(response.data || {});
+                }
+            };
+            return false;
+        }
         // 通用请求判断
         if (!response) return;
         const data = response.data;
         if (isUndef(data.Code) || data.Code === 0) {
-            if (opt.cache) {
+            if (opt.cache && data.Data) {
                 try {
-                    localStorage.setItem(getStoreKey(opt), JSON.stringify(data));
-                } catch (error) {}
-            }
-            // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
-            if (opt.cache === false) {
-                try {
-                    const cache = localStorage.getItem(getStoreKey(opt));
-                    if (diffServiceCache(data, JSON.parse(cache))) {
-                        return new Promise(() => {});
-                    }
-                    localStorage.setItem(getStoreKey(opt), JSON.stringify(data));
+                    cacheDB && cacheDB.addData4DB(getStoreKey(opt), data.Data);
                 } catch (error) {
                     console.log(error);
                 }
             }
-            return data.Data;
+            // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
+            if (opt.cache === false) {
+                try {
+                    const cache = await cacheDB.getData4DB(getStoreKey(opt));
+                    if (diffServiceCache(data, cache)) {
+                        return new Promise(() => {});
+                    }
+                    data.Data && cacheDB.addData4DB(getStoreKey(opt), data.Data);
+                } catch (error) {
+                    console.log(error);
+                }
+            }
+            return Promise.resolve(data.Data);
         }
         if (opt.isHandleError) {
             return Promise.reject(response.data || {});
@@ -151,32 +193,31 @@ const createAjax = (option: createAjaxOption) => {
             }
         }
         assignDeep(req, opt);
-        if (mergeOption.beforeRequestHandler && mergeOption.beforeRequestHandler instanceof Function) {
-            mergeOption
-                .beforeRequestHandler(req)
-                .then(
-                    (res: any) => {
-                        if (!isType('Undefined')(opt.cache)) {
-                            let cacheData;
-                            try {
-                                cacheData = localStorage.getItem(getStoreKey(opt));
-                            } catch (error) {}
-                            if (cacheData && opt.cache === true) {
-                                return Promise.resolve({ data: JSON.parse(cacheData) });
-                            }
-                            if (!cacheData && opt.cache === false) {
-                                // 如果之前没有缓存过，第二次请求取消
-                                return new Promise(() => {});
-                            }
+        return mergeOption
+            .beforeRequestHandler(req)
+            .then(
+                async function(res: AxiosRequestConfig) {
+                    if (!isType('Undefined')(opt.cache)) {
+                        let cacheData;
+                        try {
+                            cacheData = await cacheDB.getData4DB(getStoreKey(opt));
+                            console.log(cacheData);
+                        } catch (error) {
+                            console.log(error);
                         }
-                        return axios(res);
-                    },
-                    (error: any) => error
-                )
-                .then((response: AxiosResponse) => preCheckCode(response, opt), (err: AxiosError) => preReject(err, opt));
-        } else {
-            return axios(req).then((response: AxiosResponse) => preCheckCode(response, opt), (err: AxiosError) => preReject(err, opt));
-        }
+                        if (cacheData && opt.cache === true) {
+                            return Promise.resolve({ data: cacheData });
+                        }
+                        if (!cacheData && opt.cache === false) {
+                            // 如果之前没有缓存过，第二次请求取消
+                            return new Promise(() => {});
+                        }
+                    }
+                    return axios(res);
+                },
+                (error: any) => error
+            )
+            .then((response: AxiosResponse) => preCheckCode(response, req), (err: AxiosError) => preReject(err, req));
     };
     const getJSON = (opt: ajaxOption) => {
         opt.method = 'GET';
@@ -188,6 +229,9 @@ const createAjax = (option: createAjaxOption) => {
 
     const postJSON = (opt: ajaxOption) => {
         opt.method = 'POST';
+        if (opt.params && Object.keys(opt.params).length) {
+            opt.paramsSerializer = (params: any) => qs.stringify(params, { indices: false });
+        }
         return common(opt);
     };
     const putJSON = (opt: ajaxOption) => {
@@ -199,7 +243,43 @@ const createAjax = (option: createAjaxOption) => {
         opt.method = 'DELETE';
         return common(opt);
     };
-    return { getJSON, postJSON, putJSON, deleteJSON };
+    // 登录时需使用formdata格式传输数据
+    const postFormData = (opt: ajaxOption) => {
+        opt.method = 'POST';
+        opt.data = queryStringify(opt.data);
+        opt.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        return common(opt);
+    };
+    // 下载接口
+    const downloadFile = (opt: ajaxOption, fileCfg: fileCfgProps) => {
+        // 下载文件是data字段，不是params字段
+        opt.method = 'POST';
+        opt.responseType = 'blob';
+        opt.headers = {
+            'Content-Type': 'blob',
+        };
+        return common(opt).then(res => {
+            if (!res) return;
+            let resFileName = '';
+            try {
+                resFileName = decodeURIComponent(res.headers['content-disposition'].split('=')[1]); // 后端返回的名称
+            } catch (error) {
+                console.log(error);
+            }
+            const datas = res instanceof Blob ? res : new Blob([res.data], { type: 'application/octet-stream' });
+            const textFile = window.URL.createObjectURL(datas);
+            if (textFile !== null) {
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.href = textFile;
+                a.download = fileCfg && fileCfg.fileName ? fileCfg.fileName : resFileName; // 优先取自义定名称
+                a.click();
+                window.URL.revokeObjectURL(textFile);
+            }
+        });
+    };
+    return { getJSON, postJSON, putJSON, deleteJSON, downloadFile, postFormData };
 };
 
-export default { createAjax, axios };
+export default createAjax;

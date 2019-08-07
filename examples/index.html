@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <script src="./axios.min.js"></script>
+        <script src="./topsAjax.js"></script>
+        <title>ajax-demo</title>
+        <style></style>
+    </head>
+    <body>
+        <div>
+            <span id="loading"></span>
+            <pre id="responceContent"></pre>
+        </div>
+        <script>
+            const loadingNode = document.querySelector('#loading');
+            const responceNode = document.querySelector('#responceContent');
+            var ajax = topsAjax({
+                showLoading() {
+                    loadingNode.textContent = 'loading开启';
+                },
+                hideLoading() {
+                    loadingNode.textContent = 'loading关闭';
+                },
+                projectName: 'demo6',
+            });
+            ajax.getJSON({
+                url: 'https://activity.apitops.com/activity/api/v1/thematic/code/MJN3aa/setting',
+                cache: true,
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                ajax.getJSON({
+                    url: 'https://activity.apitops.com/activity/api/v1/thematic/code/MJN3aa/setting',
+                    cache: false,
+                }).then(res => {
+                    responceNode.textContent = JSON.stringify(res, null, 4);
+                });
+            });
+        </script>
+    </body>
+</html>

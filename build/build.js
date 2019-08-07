@@ -3,6 +3,7 @@ const path = require('path');
 const zlib = require('zlib');
 const uglify = require('uglify-js');
 const rollup = require('rollup');
+const shelljs = require('shelljs');
 const configs = require('./configs');
 
 if (!fs.existsSync('dist')) {
@@ -10,7 +11,6 @@ if (!fs.existsSync('dist')) {
 }
 
 build(Object.keys(configs).map(key => configs[key]));
-
 function build(builds) {
     let built = 0;
     const total = builds.length;
@@ -19,6 +19,7 @@ function build(builds) {
             .then(() => {
                 built++;
                 if (built < total) {
+                    shelljs.cp('-R', './dist/topsAjax.js', './examples/topsAjax.js');
                     next();
                 }
             })
@@ -33,9 +34,9 @@ function buildEntry({ input, output }) {
     return rollup
         .rollup(input)
         .then(bundle => bundle.generate(output))
-        .then(({ code }) => {
+        .then(({ output: [{ code }] }) => {
             if (isProd) {
-                var minified =
+                const minified =
                     (output.banner ? output.banner + '\n' : '') +
                     uglify.minify(code, {
                         output: {

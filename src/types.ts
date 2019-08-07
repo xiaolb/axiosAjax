@@ -12,8 +12,16 @@ export interface createAjaxOption {
 export interface ajaxOption extends AxiosRequestConfig {
     cache?: boolean; // 是否启用接口缓存
     loading?: boolean; // 是否显示loading
-    isHandleError: boolean; // 业务处理异常
+    isHandleError?: boolean; // 业务处理异常
 }
 export interface emptyErrorProps {
     data: any;
+}
+
+export interface fileCfgProps {
+    fileName: string;
+}
+export interface dbItem {
+    requestmd5: string;
+    response?: any;
 }

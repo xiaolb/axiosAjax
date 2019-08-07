@@ -1,7 +1,7 @@
 # GUIDE
 
 ajax 的封装
-请确保项目中能够使用 promise
+请确保项目中能够使用 promise，includes，需要先引入 babel-polyfill
 
 ```js
 if (!window.Promise) {
@@ -11,7 +11,12 @@ if (!window.Promise) {
 
 # Install
 
+本项目依赖 axios，需要在工程中先安装 axios
+
 ```bash
+$ yarn add axios # 安装依赖
+$ npm i axios --save # 安装依赖
+
 $ yarn add @util/ajax # 安装依赖
 $ npm i @util/ajax --save # 安装依赖
 ```
@@ -19,7 +24,7 @@ $ npm i @util/ajax --save # 安装依赖
 # API
 
 ```js
-import { createAjax, axios } from '@util/ajax';
+import createAjax from '@util/ajax';
 ```
 
 # PARAMS
@@ -34,6 +39,7 @@ export interface createAjaxOption {
     errorMsgHandler: Function; // 异常消息处理方法
     requestConfig: any; // 请求的入参，可以配置公共的入参，如headers的ak或uk，数据结构同AxiosRequestConfig
     beforeRequestHandler?: Function; // 请求前的处理，如：获取签名等
+    projectName?: string; // 项目名称 主要用于接口缓存indexDB的storeName
 }
 ```
 
