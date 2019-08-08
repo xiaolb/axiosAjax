@@ -12,10 +12,12 @@
     <body>
         <div>
             <span id="loading"></span>
+            <p id="error"></p>
             <pre id="responceContent"></pre>
         </div>
         <script>
             const loadingNode = document.querySelector('#loading');
+            const errorNode = document.querySelector('#error');
             const responceNode = document.querySelector('#responceContent');
             var ajax = topsAjax({
                 showLoading() {
@@ -25,18 +27,23 @@
                     loadingNode.textContent = 'loading关闭';
                 },
                 projectName: 'demo6',
+                errorMsgHandler(msg) {
+                    errorNode.textContent = msg;
+                },
             });
             ajax.getJSON({
-                url: 'https://activity.apitops.com/activity/api/v1/thematic/code/MJN3aa/setting',
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
                 cache: true,
             }).then(res => {
                 responceNode.textContent = JSON.stringify(res, null, 4);
-                ajax.getJSON({
-                    url: 'https://activity.apitops.com/activity/api/v1/thematic/code/MJN3aa/setting',
-                    cache: false,
-                }).then(res => {
-                    responceNode.textContent = JSON.stringify(res, null, 4);
-                });
+                console.log('cache', res);
+            });
+            ajax.getJSON({
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
+                cache: false,
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                console.log('discache', res);
             });
         </script>
     </body>

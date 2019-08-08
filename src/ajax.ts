@@ -1,4 +1,4 @@
-import axios, { AxiosResponse, AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosResponse, AxiosError, AxiosRequestConfig, CancelToken } from 'axios';
 import qs from 'qs';
 import { hexMd5 } from '@util/md5';
 import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
@@ -17,6 +17,9 @@ const queryStringify = (data: any) => {
     }
     return ret.join('&');
 };
+
+const isType = (type: string) => (obj: any) => ({}.toString.call(obj) === `[object ${type}]`);
+const isUndef = isType('Undefined');
 
 const loop = function(params: any) {
     console.log(params);
@@ -38,7 +41,19 @@ const assignDeep = function(target: any, source: any) {
         }
     }
 };
-const isType = (type: string) => (obj: any) => ({}.toString.call(obj) === `[object ${type}]`);
+const requestMap = {
+    requests: {},
+    save(key: string, cancel: CancelToken) {
+        if (this.requests[key]) {
+            this.requests[key]();
+        }
+        this.requests[key] = cancel;
+    },
+    getKey(req: AxiosRequestConfig) {
+        return hexMd5(`${req.method}@${req.baseURL}${req.url}@ak=${req.headers ? req.headers.Authorization || '' : ''}`);
+    },
+};
+const cacheLoadTime: { [key: string]: any } = {};
 // 获取存储接口缓存的key
 const getStoreKey = (opt: ajaxOption) =>
     hexMd5(
@@ -47,17 +62,26 @@ const getStoreKey = (opt: ajaxOption) =>
         }@data=${opt.data ? JSON.stringify(opt.data) : ''}`
     );
 // 判断接口返回数据是否相同
-const diffServiceCache = (c1: any, c2: any) => {
-    if (!c1 || !c2) return false;
-    let c1str = isType('String')(c1) ? c1 : JSON.stringify(c1);
-    let c2str = isType('String')(c2) ? c2 : JSON.stringify(c2);
-    console.log(c1str);
-    console.log(c2str);
+var deepEqual = function(x: any, y: any) {
+    // 指向同一内存时
+    if (x === y) {
+        return true;
+    } else if (typeof x == 'object' && x != null && (typeof y == 'object' && y != null)) {
+        if (Object.keys(x).length != Object.keys(y).length) return false;
 
-    return c1str === c2str;
+        for (let prop in x) {
+            if (prop !== 'ServerTime') {
+                if (y.hasOwnProperty(prop)) {
+                    if (!deepEqual(x[prop], y[prop])) {
+                        return false;
+                    }
+                } else return false;
+            }
+        }
+
+        return true;
+    } else return false;
 };
-const isUndef = isType('Undefined');
-
 const createAjax = (option: createAjaxOption) => {
     const defaultOption = {
         showLoading: loop,
@@ -78,6 +102,7 @@ const createAjax = (option: createAjaxOption) => {
     };
     cacheDB = new topsDB(mergeOption.projectName);
     const preCheckCode = async function(response: any, opt: ajaxOption) {
+        console.timeEnd(`${opt.url}-${opt.cache}`);
         mergeOption.hideLoading(opt);
         if (response.request && response.request.responseType === 'blob') {
             if (response.headers['content-disposition']) {
@@ -98,26 +123,33 @@ const createAjax = (option: createAjaxOption) => {
         // 通用请求判断
         if (!response) return;
         const data = response.data;
+        let key = getStoreKey(opt);
         if (isUndef(data.Code) || data.Code === 0) {
             if (opt.cache && data.Data) {
                 try {
-                    cacheDB && cacheDB.addData4DB(getStoreKey(opt), data.Data);
+                    cacheDB && cacheDB.addData4DB(key, data);
                 } catch (error) {
                     console.log(error);
                 }
             }
             // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
             if (opt.cache === false) {
-                try {
-                    const cache = await cacheDB.getData4DB(getStoreKey(opt));
-                    if (diffServiceCache(data, cache)) {
-                        return new Promise(() => {});
+                if (cacheLoadTime[key]) {
+                    try {
+                        let key = getStoreKey(opt);
+                        const cache = await cacheDB.getData4DB(key);
+                        if (cache && deepEqual(data, cache)) {
+                            return new Promise(() => {});
+                        }
+                        data.Data && cacheDB.addData4DB(key, data);
+                    } catch (error) {
+                        console.log(error);
                     }
-                    data.Data && cacheDB.addData4DB(getStoreKey(opt), data.Data);
-                } catch (error) {
-                    console.log(error);
+                } else {
+                    cacheLoadTime[key] = new Date().getTime();
                 }
             }
+            data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
         }
         if (opt.isHandleError) {
@@ -171,6 +203,12 @@ const createAjax = (option: createAjaxOption) => {
         return Promise.reject(opt.isHandleError ? response.data || {} : {});
     };
     const common = (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
+        console.time(`${opt.url}-${opt.cache}`);
+        let cancel;
+        let cancelToken = new axios.CancelToken(function(c) {
+            cancel = c;
+        });
+        if (!window || !window.indexedDB) opt.cache = void 0;
         if (opt.loading) {
             mergeOption.showLoading(opt);
         }
@@ -185,32 +223,37 @@ const createAjax = (option: createAjaxOption) => {
             },
             responseType: 'json',
             withCredentials: true,
+            cancelToken,
         };
         let objectSource: any = opt;
         for (const key in objectSource) {
             if (objectSource.hasOwnProperty(key)) {
-                if (typeof objectSource[key] === 'undefined') delete objectSource[key];
+                if (isType('Undefined')(objectSource[key])) delete objectSource[key];
             }
         }
         assignDeep(req, opt);
+        requestMap.save(requestMap.getKey(req), cancel);
         return mergeOption
             .beforeRequestHandler(req)
             .then(
                 async function(res: AxiosRequestConfig) {
                     if (!isType('Undefined')(opt.cache)) {
                         let cacheData;
-                        try {
-                            cacheData = await cacheDB.getData4DB(getStoreKey(opt));
-                            console.log(cacheData);
-                        } catch (error) {
-                            console.log(error);
-                        }
-                        if (cacheData && opt.cache === true) {
+
+                        if (opt.cache === true) {
+                            let key: string = getStoreKey(opt);
+                            try {
+                                cacheLoadTime[key] = void 0;
+                                cacheData = await cacheDB.getData4DB(key);
+                            } catch (error) {
+                                console.log(error);
+                            }
+                            if (!cacheData || cacheLoadTime[key]) return new Promise(() => {}); // 没有换存或者请求接口更快
+                            cacheLoadTime[key] = new Date().getTime();
+                            setTimeout(() => {
+                                Reflect.deleteProperty(cacheLoadTime, key);
+                            }, 5000);
                             return Promise.resolve({ data: cacheData });
-                        }
-                        if (!cacheData && opt.cache === false) {
-                            // 如果之前没有缓存过，第二次请求取消
-                            return new Promise(() => {});
                         }
                     }
                     return axios(res);
@@ -252,13 +295,14 @@ const createAjax = (option: createAjaxOption) => {
     };
     // 下载接口
     const downloadFile = (opt: ajaxOption, fileCfg: fileCfgProps) => {
+        if (!window) return new Error('此方法依赖浏览器方法 window.URL.createObjectURL');
         // 下载文件是data字段，不是params字段
         opt.method = 'POST';
         opt.responseType = 'blob';
         opt.headers = {
             'Content-Type': 'blob',
         };
-        return common(opt).then(res => {
+        return common(opt).then((res: AxiosResponse) => {
             if (!res) return;
             let resFileName = '';
             try {

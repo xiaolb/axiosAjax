@@ -2066,6 +2066,14 @@ var queryStringify = function queryStringify(data) {
   return ret.join('&');
 };
 
+var isType = function isType(type) {
+  return function (obj) {
+    return {}.toString.call(obj) === "[object ".concat(type, "]");
+  };
+};
+
+var isUndef = isType('Undefined');
+
 var loop = function loop(params) {
   console.log(params);
 };
@@ -2087,28 +2095,46 @@ var assignDeep = function assignDeep(target, source) {
   }
 };
 
-var isType = function isType(type) {
-  return function (obj) {
-    return {}.toString.call(obj) === "[object ".concat(type, "]");
-  };
-}; // 获取存储接口缓存的key
+var requestMap = {
+  requests: {},
+  save: function save(key, cancel) {
+    if (this.requests[key]) {
+      this.requests[key]();
+    }
 
+    this.requests[key] = cancel;
+  },
+  getKey: function getKey(req) {
+    return hexMd5("".concat(req.method, "@").concat(req.baseURL).concat(req.url, "@ak=").concat(req.headers ? req.headers.Authorization || '' : ''));
+  }
+};
+var cacheLoadTime = {}; // 获取存储接口缓存的key
 
 var getStoreKey = function getStoreKey(opt) {
   return hexMd5("".concat(opt.method, "@").concat(opt.baseURL).concat(opt.url, "@ak=").concat(opt.headers ? opt.headers.Authorization || '' : '', "@params=").concat(opt.params ? JSON.stringify(opt.params) : '', "@data=").concat(opt.data ? JSON.stringify(opt.data) : ''));
 }; // 判断接口返回数据是否相同
 
 
-var diffServiceCache = function diffServiceCache(c1, c2) {
-  if (!c1 || !c2) { return false; }
-  var c1str = isType('String')(c1) ? c1 : JSON.stringify(c1);
-  var c2str = isType('String')(c2) ? c2 : JSON.stringify(c2);
-  console.log(c1str);
-  console.log(c2str);
-  return c1str === c2str;
-};
+var deepEqual = function deepEqual(x, y) {
+  // 指向同一内存时
+  if (x === y) {
+    return true;
+  } else if (_typeof(x) == 'object' && x != null && _typeof(y) == 'object' && y != null) {
+    if (Object.keys(x).length != Object.keys(y).length) { return false; }
 
-var isUndef = isType('Undefined');
+    for (var prop in x) {
+      if (prop !== 'ServerTime') {
+        if (y.hasOwnProperty(prop)) {
+          if (!deepEqual(x[prop], y[prop])) {
+            return false;
+          }
+        } else { return false; }
+      }
+    }
+
+    return true;
+  } else { return false; }
+};
 
 var createAjax = function createAjax(option) {
   var defaultOption = {
@@ -2131,26 +2157,28 @@ var createAjax = function createAjax(option) {
     return __awaiter(this, void 0, void 0,
     /*#__PURE__*/
     regenerator.mark(function _callee() {
-      var reader, data, cache;
+      var reader, data, key, _key, cache;
+
       return regenerator.wrap(function _callee$(_context) {
         while (1) {
           switch (_context.prev = _context.next) {
             case 0:
+              console.timeEnd("".concat(opt.url, "-").concat(opt.cache));
               mergeOption.hideLoading(opt);
 
               if (!(response.request && response.request.responseType === 'blob')) {
-                _context.next = 8;
+                _context.next = 9;
                 break;
               }
 
               if (!response.headers['content-disposition']) {
-                _context.next = 4;
+                _context.next = 5;
                 break;
               }
 
               return _context.abrupt("return", Promise.resolve(response));
 
-            case 4:
+            case 5:
               // 下载出现异常处理
               reader = new FileReader();
               reader.readAsText(response.data, 'utf8');
@@ -2165,25 +2193,26 @@ var createAjax = function createAjax(option) {
 
               return _context.abrupt("return", false);
 
-            case 8:
+            case 9:
               if (response) {
-                _context.next = 10;
+                _context.next = 11;
                 break;
               }
 
               return _context.abrupt("return");
 
-            case 10:
+            case 11:
               data = response.data;
+              key = getStoreKey(opt);
 
               if (!(isUndef(data.Code) || data.Code === 0)) {
-                _context.next = 27;
+                _context.next = 35;
                 break;
               }
 
               if (opt.cache && data.Data) {
                 try {
-                  cacheDB && cacheDB.addData4DB(getStoreKey(opt), data.Data);
+                  cacheDB && cacheDB.addData4DB(key, data);
                 } catch (error) {
                   console.log(error);
                 }
@@ -2191,81 +2220,95 @@ var createAjax = function createAjax(option) {
 
 
               if (!(opt.cache === false)) {
-                _context.next = 26;
+                _context.next = 33;
                 break;
               }
 
-              _context.prev = 14;
-              _context.next = 17;
-              return cacheDB.getData4DB(getStoreKey(opt));
+              if (!cacheLoadTime[key]) {
+                _context.next = 32;
+                break;
+              }
 
-            case 17:
+              _context.prev = 17;
+              _key = getStoreKey(opt);
+              _context.next = 21;
+              return cacheDB.getData4DB(_key);
+
+            case 21:
               cache = _context.sent;
 
-              if (!diffServiceCache(data, cache)) {
-                _context.next = 20;
+              if (!(cache && deepEqual(data, cache))) {
+                _context.next = 24;
                 break;
               }
 
               return _context.abrupt("return", new Promise(function () {}));
 
-            case 20:
-              data.Data && cacheDB.addData4DB(getStoreKey(opt), data.Data);
-              _context.next = 26;
+            case 24:
+              data.Data && cacheDB.addData4DB(_key, data);
+              _context.next = 30;
               break;
 
-            case 23:
-              _context.prev = 23;
-              _context.t0 = _context["catch"](14);
+            case 27:
+              _context.prev = 27;
+              _context.t0 = _context["catch"](17);
               console.log(_context.t0);
 
-            case 26:
+            case 30:
+              _context.next = 33;
+              break;
+
+            case 32:
+              cacheLoadTime[key] = new Date().getTime();
+
+            case 33:
+              data.Data.cache = opt.cache;
               return _context.abrupt("return", Promise.resolve(data.Data));
 
-            case 27:
+            case 35:
               if (!opt.isHandleError) {
-                _context.next = 29;
+                _context.next = 37;
                 break;
               }
 
               return _context.abrupt("return", Promise.reject(response.data || {}));
 
-            case 29:
+            case 37:
               if (!(response.data && response.data.Message)) {
-                _context.next = 32;
+                _context.next = 40;
                 break;
               }
 
               mergeOption.hideLoading(opt);
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 32:
+            case 40:
               if (!(data.Code === 302)) {
-                _context.next = 35;
+                _context.next = 43;
                 break;
               }
 
               window.location.href = data.message + window.location.hash;
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 35:
+            case 43:
               if (!(data.Code === 4002 || data.Code === 4000)) {
-                _context.next = 38;
+                _context.next = 46;
                 break;
               }
 
               if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 38:
+            case 46:
               return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
 
-            case 39:
+            case 47:
             case "end":
               return _context.stop();
           }
         }
-      }, _callee, null, [[14, 23]]);
+      }, _callee, null, [[17, 27]]);
     }));
   };
 
@@ -2315,6 +2358,12 @@ var createAjax = function createAjax(option) {
       loading: false,
       isHandleError: false
     };
+    console.time("".concat(opt.url, "-").concat(opt.cache));
+    var cancel;
+    var cancelToken = new axios.CancelToken(function (c) {
+      cancel = c;
+    });
+    if (!window || !window.indexedDB) { opt.cache = void 0; }
 
     if (opt.loading) {
       mergeOption.showLoading(opt);
@@ -2329,58 +2378,57 @@ var createAjax = function createAjax(option) {
         'Content-Type': 'application/json; charset=UTF-8'
       },
       responseType: 'json',
-      withCredentials: true
+      withCredentials: true,
+      cancelToken: cancelToken
     });
     var objectSource = opt;
 
     for (var key in objectSource) {
       if (objectSource.hasOwnProperty(key)) {
-        if (typeof objectSource[key] === 'undefined') { delete objectSource[key]; }
+        if (isType('Undefined')(objectSource[key])) { delete objectSource[key]; }
       }
     }
 
     assignDeep(req, opt);
+    requestMap.save(requestMap.getKey(req), cancel);
     return mergeOption.beforeRequestHandler(req).then(function (res) {
       return __awaiter(this, void 0, void 0,
       /*#__PURE__*/
       regenerator.mark(function _callee2() {
-        var cacheData;
+        var cacheData, _key2;
+
         return regenerator.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
                 if (isType('Undefined')(opt.cache)) {
-                  _context2.next = 15;
+                  _context2.next = 18;
                   break;
                 }
 
-                _context2.prev = 1;
-                _context2.next = 4;
-                return cacheDB.getData4DB(getStoreKey(opt));
+                if (!(opt.cache === true)) {
+                  _context2.next = 18;
+                  break;
+                }
 
-              case 4:
+                _key2 = getStoreKey(opt);
+                _context2.prev = 3;
+                cacheLoadTime[_key2] = void 0;
+                _context2.next = 7;
+                return cacheDB.getData4DB(_key2);
+
+              case 7:
                 cacheData = _context2.sent;
-                console.log(cacheData);
-                _context2.next = 11;
+                _context2.next = 13;
                 break;
 
-              case 8:
-                _context2.prev = 8;
-                _context2.t0 = _context2["catch"](1);
+              case 10:
+                _context2.prev = 10;
+                _context2.t0 = _context2["catch"](3);
                 console.log(_context2.t0);
 
-              case 11:
-                if (!(cacheData && opt.cache === true)) {
-                  _context2.next = 13;
-                  break;
-                }
-
-                return _context2.abrupt("return", Promise.resolve({
-                  data: cacheData
-                }));
-
               case 13:
-                if (!(!cacheData && opt.cache === false)) {
+                if (!(!cacheData || cacheLoadTime[_key2])) {
                   _context2.next = 15;
                   break;
                 }
@@ -2388,14 +2436,24 @@ var createAjax = function createAjax(option) {
                 return _context2.abrupt("return", new Promise(function () {}));
 
               case 15:
+                // 没有换存或者请求接口更快
+                cacheLoadTime[_key2] = new Date().getTime();
+                setTimeout(function () {
+                  Reflect.deleteProperty(cacheLoadTime, _key2);
+                }, 5000);
+                return _context2.abrupt("return", Promise.resolve({
+                  data: cacheData
+                }));
+
+              case 18:
                 return _context2.abrupt("return", axios(res));
 
-              case 16:
+              case 19:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, null, [[1, 8]]);
+        }, _callee2, null, [[3, 10]]);
       }));
     }, function (error) {
       return error;
@@ -2456,7 +2514,8 @@ var createAjax = function createAjax(option) {
 
 
   var downloadFile = function downloadFile(opt, fileCfg) {
-    // 下载文件是data字段，不是params字段
+    if (!window) { return new Error('此方法依赖浏览器方法 window.URL.createObjectURL'); } // 下载文件是data字段，不是params字段
+
     opt.method = 'POST';
     opt.responseType = 'blob';
     opt.headers = {

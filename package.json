@@ -36,7 +36,7 @@
         "@babel/runtime": "^7.5.5",
         "@babel/runtime-corejs3": "^7.5.5",
         "@util/eslint-config-es6": "^1.3.31",
-        "babel-loader": "babel/babel-loader",
+        "babel-loader": "^8.0.6",
         "chalk": "^2.4.2",
         "rollup": "^1.17.0",
         "rollup-plugin-babel": "^4.3.3",
