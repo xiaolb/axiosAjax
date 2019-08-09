@@ -1,46 +1,15 @@
 import axios, { AxiosResponse, AxiosError, AxiosRequestConfig, CancelToken } from 'axios';
 import qs from 'qs';
 import { hexMd5 } from '@util/md5';
+import createIndexDB, { TopsIndexDB } from '@util/indexdb';
 import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
-import topsDB from './db';
-/**
- * @method 生成queryString
- * @param data
- * @return {String}
- * @desc {foo: 'bar', search: 123}  => foo=bar&search=123
- */
-const queryStringify = (data: any) => {
-    const ret = [];
-    for (let k in data) {
-        const value = encodeURIComponent(data[k]);
-        ret.push(`${k}=${value}`);
-    }
-    return ret.join('&');
-};
-
-const isType = (type: string) => (obj: any) => ({}.toString.call(obj) === `[object ${type}]`);
-const isUndef = isType('Undefined');
+import { queryStringify, assignDeep, deepEqual, isType, isUndef } from './utils';
 
 const loop = function(params: any) {
     console.log(params);
 };
-let cacheDB: topsDB = null;
-// 深度继承
-const assignDeep = function(target: any, source: any) {
-    if (typeof source !== 'object' || typeof target !== 'object') Object.assign(target, source);
-    else {
-        for (const key in source) {
-            if (source.hasOwnProperty(key)) {
-                if (typeof source[key] === 'object' && typeof target[key] !== 'undefined' && target[key] !== null) {
-                    assignDeep(target[key], source[key]);
-                } else {
-                    if (!target) target = {};
-                    target[key] = typeof source[key] === 'undefined' ? target[key] : source[key];
-                }
-            }
-        }
-    }
-};
+let cacheDB: TopsIndexDB = null;
+
 const requestMap = {
     requests: {},
     save(key: string, cancel: CancelToken) {
@@ -61,27 +30,7 @@ const getStoreKey = (opt: ajaxOption) =>
             opt.params ? JSON.stringify(opt.params) : ''
         }@data=${opt.data ? JSON.stringify(opt.data) : ''}`
     );
-// 判断接口返回数据是否相同
-var deepEqual = function(x: any, y: any) {
-    // 指向同一内存时
-    if (x === y) {
-        return true;
-    } else if (typeof x == 'object' && x != null && (typeof y == 'object' && y != null)) {
-        if (Object.keys(x).length != Object.keys(y).length) return false;
 
-        for (let prop in x) {
-            if (prop !== 'ServerTime') {
-                if (y.hasOwnProperty(prop)) {
-                    if (!deepEqual(x[prop], y[prop])) {
-                        return false;
-                    }
-                } else return false;
-            }
-        }
-
-        return true;
-    } else return false;
-};
 const createAjax = (option: createAjaxOption) => {
     const defaultOption = {
         showLoading: loop,
@@ -100,9 +49,8 @@ const createAjax = (option: createAjaxOption) => {
         ...defaultOption,
         ...option,
     };
-    cacheDB = new topsDB(mergeOption.projectName);
+    cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
     const preCheckCode = async function(response: any, opt: ajaxOption) {
-        console.timeEnd(`${opt.url}-${opt.cache}`);
         mergeOption.hideLoading(opt);
         if (response.request && response.request.responseType === 'blob') {
             if (response.headers['content-disposition']) {
@@ -136,9 +84,8 @@ const createAjax = (option: createAjaxOption) => {
             if (opt.cache === false) {
                 if (cacheLoadTime[key]) {
                     try {
-                        let key = getStoreKey(opt);
-                        const cache = await cacheDB.getData4DB(key);
-                        if (cache && deepEqual(data, cache)) {
+                        const cacheData = await cacheDB.getData4DB(key);
+                        if (cacheData && deepEqual(data, cacheData)) {
                             return new Promise(() => {});
                         }
                         data.Data && cacheDB.addData4DB(key, data);
@@ -203,7 +150,6 @@ const createAjax = (option: createAjaxOption) => {
         return Promise.reject(opt.isHandleError ? response.data || {} : {});
     };
     const common = (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
-        console.time(`${opt.url}-${opt.cache}`);
         let cancel;
         let cancelToken = new axios.CancelToken(function(c) {
             cancel = c;
@@ -239,7 +185,6 @@ const createAjax = (option: createAjaxOption) => {
                 async function(res: AxiosRequestConfig) {
                     if (!isType('Undefined')(opt.cache)) {
                         let cacheData;
-
                         if (opt.cache === true) {
                             let key: string = getStoreKey(opt);
                             try {
@@ -248,9 +193,10 @@ const createAjax = (option: createAjaxOption) => {
                             } catch (error) {
                                 console.log(error);
                             }
-                            if (!cacheData || cacheLoadTime[key]) return new Promise(() => {}); // 没有换存或者请求接口更快
+                            if (!cacheData || cacheLoadTime[key]) return new Promise(() => {}); // 没有缓存或者请求接口更快
                             cacheLoadTime[key] = new Date().getTime();
                             setTimeout(() => {
+                                // 清楚获取缓存记录，以防下次调用时判断错误
                                 Reflect.deleteProperty(cacheLoadTime, key);
                             }, 5000);
                             return Promise.resolve({ data: cacheData });

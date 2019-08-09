@@ -2,7 +2,9 @@
     "name": "@util/ajax",
     "version": "0.0.2",
     "description": "ajax封装 底层基于axios",
-    "main": "index.js",
+    "main": "dist/topsAjax.common.js",
+    "module": "dist/topsAjax.esm.js",
+    "unpkg": "dist/topsAjax.min.js",
     "scripts": {
         "build": "node build/build.js",
         "release": "bash build/release.sh",
@@ -19,6 +21,7 @@
     "author": "xiekaifeng4042",
     "license": "ISC",
     "dependencies": {
+        "@util/indexdb": "^0.0.6",
         "@util/md5": "^1.0.0",
         "core-js": "2",
         "qs": "^6.7.0"
