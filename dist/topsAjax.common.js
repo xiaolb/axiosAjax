@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.2
+ * util/ajax v0.0.3
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -1782,10 +1782,9 @@ function bit_rol(num, cnt)
 var hexMd5 = hex_md5;
 
 /**
- * util/ajax v0.0.4
+ * util/ajax v0.0.7
  * (c) 2019 xiekaifeng4042
  */
-
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation. All rights reserved.
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use
@@ -1800,158 +1799,72 @@ MERCHANTABLITY OR NON-INFRINGEMENT.
 See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
+
 function __awaiter$1(thisArg, _arguments, P, generator) {
-  return new (P || (P = Promise))(function (resolve, reject) {
-    function fulfilled(value) {
-      try {
-        step(generator.next(value));
-      } catch (e) {
-        reject(e);
-      }
-    }
-
-    function rejected(value) {
-      try {
-        step(generator["throw"](value));
-      } catch (e) {
-        reject(e);
-      }
-    }
-
-    function step(result) {
-      result.done ? resolve(result.value) : new P(function (resolve) {
-        resolve(result.value);
-      }).then(fulfilled, rejected);
-    }
-
-    step((generator = generator.apply(thisArg, _arguments || [])).next());
-  });
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
 }
 
 function __generator(thisArg, body) {
-  var _ = {
-    label: 0,
-    sent: function () {
-      if (t[0] & 1) {
-        throw t[1];
-      }
+    var _ = { label: 0, sent: function() { if (t[0] & 1) { throw t[1]; } return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) { throw new TypeError("Generator is already executing."); }
+        while (_) { try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) { return t; }
+            if (y = 0, t) { op = [op[0] & 2, t.value]; }
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) { _.ops.pop(); }
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; } }
+        if (op[0] & 5) { throw op[1]; } return { value: op[0] ? op[1] : void 0, done: true };
+    }
+}
 
-      return t[1];
+var observerMap = {};
+
+function observer(target, key) {
+  var n = Symbol();
+  var curValue = target[key];
+  Object.defineProperty(target, key, {
+    get: function get() {
+      return curValue;
     },
-    trys: [],
-    ops: []
-  },
-      f,
-      y,
-      t,
-      g;
-  return g = {
-    next: verb(0),
-    "throw": verb(1),
-    "return": verb(2)
-  }, typeof Symbol === "function" && (g[Symbol.iterator] = function () {
-    return this;
-  }), g;
-
-  function verb(n) {
-    return function (v) {
-      return step([n, v]);
-    };
-  }
-
-  function step(op) {
-    if (f) {
-      throw new TypeError("Generator is already executing.");
-    }
-
-    while (_) {
-      try {
-        if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) {
-          return t;
+    set: function set(value) {
+      if (observerMap && curValue !== value) {
+        for (var _i = 0, _a = Object.getOwnPropertySymbols(observerMap); _i < _a.length; _i++) {
+          var s = _a[_i];
+          var promise = observerMap[s];
+          promise.resolve(value);
+          Reflect.deleteProperty(observerMap, s);
         }
-
-        if (y = 0, t) {
-          op = [op[0] & 2, t.value];
-        }
-
-        switch (op[0]) {
-          case 0:
-          case 1:
-            t = op;
-            break;
-
-          case 4:
-            _.label++;
-            return {
-              value: op[1],
-              done: false
-            };
-
-          case 5:
-            _.label++;
-            y = op[1];
-            op = [0];
-            continue;
-
-          case 7:
-            op = _.ops.pop();
-
-            _.trys.pop();
-
-            continue;
-
-          default:
-            if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
-              _ = 0;
-              continue;
-            }
-
-            if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
-              _.label = op[1];
-              break;
-            }
-
-            if (op[0] === 6 && _.label < t[1]) {
-              _.label = t[1];
-              t = op;
-              break;
-            }
-
-            if (t && _.label < t[2]) {
-              _.label = t[2];
-
-              _.ops.push(op);
-
-              break;
-            }
-
-            if (t[2]) {
-              _.ops.pop();
-            }
-
-            _.trys.pop();
-
-            continue;
-        }
-
-        op = body.call(thisArg, _);
-      } catch (e) {
-        op = [6, e];
-        y = 0;
-      } finally {
-        f = t = 0;
       }
-    }
 
-    if (op[0] & 5) {
-      throw op[1];
+      curValue = value;
     }
-
-    return {
-      value: op[0] ? op[1] : void 0,
-      done: true
+  });
+  return new Promise(function (resolve, reject) {
+    observerMap[n] = {
+      resolve: resolve,
+      reject: reject
     };
-  }
+  });
 }
 
 var default_1 =
@@ -1966,6 +1879,8 @@ function () {
     this.isPending = false;
     this.dbName = '';
     this.keyPath = '';
+    this.willCreate = false; // 是否准备创建indexdb
+
     var p = this.createDB(dbName, storeName, keyPath);
 
     if (p instanceof Promise) {
@@ -1977,22 +1892,11 @@ function () {
 
 
   default_1.prototype.createDB = function (dbName, storeName, keyPath) {
-    if (!window.indexedDB) {
-      return new Error('当前环境不支持indexDB');
-    }
-
-    if (!dbName) {
-      return new Error('请指定indexDB 数据库名称');
-    }
-
-    if (!storeName) {
-      return new Error('请指定indexDB 表名');
-    }
-
-    if (!keyPath) {
-      return new Error('请指定indexDB keyPath');
-    }
-
+    if (!window.indexedDB) { return new Error('当前环境不支持indexDB'); }
+    if (!dbName) { return new Error('请指定indexDB 数据库名称'); }
+    if (!storeName) { return new Error('请指定indexDB 表名'); }
+    if (!keyPath) { return new Error('请指定indexDB keyPath'); }
+    this.willCreate = true;
     this.dbName = dbName;
     this.storeName = storeName;
     this.keyPath = keyPath;
@@ -2031,12 +1935,9 @@ function () {
 
         if (event) {
           _this.db = request.result;
-
-          if (!_this.db.objectStoreNames.contains(_this.storeName)) {
-            _this.db.createObjectStore(_this.storeName, {
-              keyPath: keyPath
-            });
-          }
+          if (!_this.db.objectStoreNames.contains(_this.storeName)) { _this.db.createObjectStore(_this.storeName, {
+            keyPath: keyPath
+          }); }
         }
 
         resolve(_this.db);
@@ -2050,12 +1951,9 @@ function () {
       return __generator(this, function (_a) {
         switch (_a.label) {
           case 0:
-            if (!(this.db && !this.db.objectStoreNames.contains(this.storeName))) {
-              return [3
-              /*break*/
-              , 2];
-            }
-
+            if (!!this.db.objectStoreNames.contains(this.storeName)) { return [3
+            /*break*/
+            , 2]; }
             return [4
             /*yield*/
             , this.createDB(this.dbName, this.storeName, this.keyPath)];
@@ -2082,17 +1980,30 @@ function () {
       return __generator(this, function (_a) {
         switch (_a.label) {
           case 0:
-            if (!this.db || this.isPending) {
-              return [2
-              /*return*/
-              ];
-            }
+            if (typeof key === 'undefined') { return [2
+            /*return*/
+            , new Error('缺少入参key值')]; }
+            if (!this.willCreate) { return [2
+            /*return*/
+            , new Error('请先创建indexDB')]; }
+            if (!this.isPending) { return [3
+            /*break*/
+            , 2]; }
+            return [4
+            /*yield*/
+            , observer(this, 'isPending')];
 
+          case 1:
+            _a.sent();
+
+            _a.label = 2;
+
+          case 2:
             return [4
             /*yield*/
             , this.checkdbStore()];
 
-          case 1:
+          case 3:
             _a.sent();
 
             return [2
@@ -2111,9 +2022,7 @@ function () {
                 request = null;
               }
 
-              if (!request) {
-                return;
-              }
+              if (!request) { return; }
 
               request.onerror = function (error) {
                 console.log(error);
@@ -2124,7 +2033,7 @@ function () {
                 if (request && request.result) {
                   resolve(request.result.response);
                 } else {
-                  resolve();
+                  resolve(null);
                 }
               };
             })];
@@ -2143,24 +2052,40 @@ function () {
       return __generator(this, function (_a) {
         switch (_a.label) {
           case 0:
-            if (!this.db || this.isPending) {
-              return [2
-              /*return*/
-              ];
-            }
+            if (typeof key === 'undefined') { return [2
+            /*return*/
+            , new Error('缺少入参key值')]; }
+            if (typeof data === 'undefined') { return [2
+            /*return*/
+            , new Error('缺少入参data')]; }
+            if (!this.willCreate) { return [2
+            /*return*/
+            , new Error('请先创建indexDB')]; }
+            if (!this.isPending) { return [3
+            /*break*/
+            , 2]; }
+            return [4
+            /*yield*/
+            , observer(this, 'isPending')];
 
+          case 1:
+            _a.sent();
+
+            _a.label = 2;
+
+          case 2:
             return [4
             /*yield*/
             , this.checkdbStore()];
 
-          case 1:
+          case 3:
             _a.sent();
 
             return [4
             /*yield*/
             , this.getData4DB(key)];
 
-          case 2:
+          case 4:
             result = _a.sent();
             return [2
             /*return*/
@@ -2173,6 +2098,7 @@ function () {
               try {
                 store = _this_1.db.transaction([_this_1.storeName], 'readwrite').objectStore(_this_1.storeName);
               } catch (error) {
+                console.log(error);
                 reject(error);
               }
 
@@ -2186,7 +2112,7 @@ function () {
               }
 
               request.onsuccess = function () {
-                resolve();
+                resolve(true);
               };
 
               request.onerror = function (event) {
@@ -2195,6 +2121,20 @@ function () {
             })];
         }
       });
+    });
+  }; // 删除某条数据
+
+
+  default_1.prototype.removeItem = function (cacheName) {
+    var _this_1 = this;
+
+    if (!this.db || !this.db.objectStoreNames.contains(this.storeName)) { return; }
+    return new Promise(function (resolve) {
+      var request = _this_1.db.transaction([_this_1.storeName], 'readwrite').objectStore(_this_1.storeName)["delete"](cacheName);
+
+      request.onsuccess = function () {
+        resolve();
+      };
     });
   };
 
@@ -2235,18 +2175,20 @@ var queryStringify = function queryStringify(data) {
 }; // 深度继承
 
 var assignDeep = function assignDeep(target, source) {
-  if (_typeof(source) !== 'object' || _typeof(target) !== 'object') { Object.assign(target, source); }else {
+  var mergeData = {};
+  if (_typeof(source) !== 'object' || _typeof(target) !== 'object') { mergeData = Object.assign({}, target, source); }else {
     for (var key in source) {
       if (source.hasOwnProperty(key)) {
         if (_typeof(source[key]) === 'object' && typeof target[key] !== 'undefined' && target[key] !== null) {
-          assignDeep(target[key], source[key]);
+          mergeData[key] = assignDeep(target[key], source[key]);
         } else {
           if (!target) { target = {}; }
-          target[key] = typeof source[key] === 'undefined' ? target[key] : source[key];
+          mergeData[key] = typeof source[key] === 'undefined' ? target[key] : source[key];
         }
       }
     }
   }
+  return mergeData;
 }; // 判断两个对象是否相等
 
 var deepEqual = function deepEqual(x, y) {
@@ -2267,7 +2209,9 @@ var deepEqual = function deepEqual(x, y) {
     }
 
     return true;
-  } else { return false; }
+  }
+
+  return false;
 }; // 判断类型
 
 var isType = function isType(type) {
@@ -2275,8 +2219,6 @@ var isType = function isType(type) {
     return {}.toString.call(obj) === "[object ".concat(type, "]");
   };
 }; // 判断是否undefined
-
-var isUndef = isType('Undefined');
 
 var loop = function loop(params) {
   console.log(params);
@@ -2296,7 +2238,7 @@ var requestMap = {
     return hexMd5("".concat(req.method, "@").concat(req.baseURL).concat(req.url, "@ak=").concat(req.headers ? req.headers.Authorization || '' : ''));
   }
 };
-var cacheLoadTime = {}; // 获取存储接口缓存的key
+var responseMap4cache = {}; // 获取存储接口缓存的key
 
 var getStoreKey = function getStoreKey(opt) {
   return hexMd5("".concat(opt.method, "@").concat(opt.baseURL).concat(opt.url, "@ak=").concat(opt.headers ? opt.headers.Authorization || '' : '', "@params=").concat(opt.params ? JSON.stringify(opt.params) : '', "@data=").concat(opt.data ? JSON.stringify(opt.data) : ''));
@@ -2369,114 +2311,122 @@ var createAjax = function createAjax(option) {
               data = response.data;
               key = getStoreKey(opt);
 
-              if (!(isUndef(data.Code) || data.Code === 0)) {
-                _context.next = 33;
+              if (!(data.Code === 0)) {
+                _context.next = 36;
                 break;
               }
-
-              if (opt.cache && data.Data) {
-                try {
-                  cacheDB && cacheDB.addData4DB(key, data);
-                } catch (error) {
-                  console.log(error);
-                }
-              } // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
-
 
               if (!(opt.cache === false)) {
-                _context.next = 31;
+                _context.next = 34;
                 break;
               }
 
-              if (!cacheLoadTime[key]) {
-                _context.next = 30;
+              if (!responseMap4cache[key]) {
+                _context.next = 32;
                 break;
               }
 
-              _context.prev = 16;
-              _context.next = 19;
+              _context.prev = 15;
+              _context.t0 = responseMap4cache[key].cacheData;
+
+              if (_context.t0) {
+                _context.next = 21;
+                break;
+              }
+
+              _context.next = 20;
               return cacheDB.getData4DB(key);
 
-            case 19:
-              cacheData = _context.sent;
+            case 20:
+              _context.t0 = _context.sent;
+
+            case 21:
+              cacheData = _context.t0;
 
               if (!(cacheData && deepEqual(data, cacheData))) {
-                _context.next = 22;
+                _context.next = 24;
                 break;
               }
 
               return _context.abrupt("return", new Promise(function () {}));
 
-            case 22:
+            case 24:
+              _context.next = 29;
+              break;
+
+            case 26:
+              _context.prev = 26;
+              _context.t1 = _context["catch"](15);
+              console.log(_context.t1);
+
+            case 29:
+              Reflect.deleteProperty(responseMap4cache, key);
+              _context.next = 33;
+              break;
+
+            case 32:
+              responseMap4cache[key] = {
+                loaded: true
+              };
+
+            case 33:
               data.Data && cacheDB.addData4DB(key, data);
-              _context.next = 28;
-              break;
 
-            case 25:
-              _context.prev = 25;
-              _context.t0 = _context["catch"](16);
-              console.log(_context.t0);
-
-            case 28:
-              _context.next = 31;
-              break;
-
-            case 30:
-              cacheLoadTime[key] = new Date().getTime();
-
-            case 31:
+            case 34:
               data.Data.cache = opt.cache;
               return _context.abrupt("return", Promise.resolve(data.Data));
 
-            case 33:
+            case 36:
               if (!opt.isHandleError) {
-                _context.next = 35;
+                _context.next = 38;
                 break;
               }
 
               return _context.abrupt("return", Promise.reject(response.data || {}));
 
-            case 35:
+            case 38:
               if (!(response.data && response.data.Message)) {
-                _context.next = 38;
+                _context.next = 41;
                 break;
               }
 
               mergeOption.hideLoading(opt);
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 38:
+            case 41:
               if (!(data.Code === 302)) {
-                _context.next = 41;
+                _context.next = 44;
                 break;
               }
 
               window.location.href = data.message + window.location.hash;
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 41:
+            case 44:
               if (!(data.Code === 4002 || data.Code === 4000)) {
-                _context.next = 44;
+                _context.next = 47;
                 break;
               }
 
               if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 44:
+            case 47:
               return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
 
-            case 45:
+            case 48:
             case "end":
               return _context.stop();
           }
         }
-      }, _callee, null, [[16, 25]]);
+      }, _callee, null, [[15, 26]]);
     }));
   };
 
   var preReject = function preReject(err, opt) {
-    mergeOption.hideLoading(opt); // 请求丢失时触发
+    mergeOption.hideLoading(opt);
+    var key = getStoreKey(opt);
+    Reflect.deleteProperty(responseMap4cache, key); // 请求丢失时触发
 
     var emptyError = {
       data: null
@@ -2551,9 +2501,9 @@ var createAjax = function createAjax(option) {
       }
     }
 
-    assignDeep(req, opt);
-    requestMap.save(requestMap.getKey(req), cancel);
-    return mergeOption.beforeRequestHandler(req).then(function (res) {
+    var mergeReq = assignDeep(req, opt);
+    requestMap.save(requestMap.getKey(mergeReq), cancel);
+    return mergeOption.beforeRequestHandler(mergeReq).then(function (res) {
       return __awaiter(this, void 0, void 0,
       /*#__PURE__*/
       regenerator.mark(function _callee2() {
@@ -2563,67 +2513,64 @@ var createAjax = function createAjax(option) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                if (isType('Undefined')(opt.cache)) {
-                  _context2.next = 18;
-                  break;
-                }
-
                 if (!(opt.cache === true)) {
-                  _context2.next = 18;
+                  _context2.next = 17;
                   break;
                 }
 
                 _key = getStoreKey(opt);
-                _context2.prev = 3;
-                cacheLoadTime[_key] = void 0;
-                _context2.next = 7;
+                _context2.prev = 2;
+                _context2.next = 5;
                 return cacheDB.getData4DB(_key);
 
-              case 7:
+              case 5:
                 cacheData = _context2.sent;
-                _context2.next = 13;
+                _context2.next = 11;
                 break;
 
-              case 10:
-                _context2.prev = 10;
-                _context2.t0 = _context2["catch"](3);
+              case 8:
+                _context2.prev = 8;
+                _context2.t0 = _context2["catch"](2);
                 console.log(_context2.t0);
 
-              case 13:
-                if (!(!cacheData || cacheLoadTime[_key])) {
-                  _context2.next = 15;
+              case 11:
+                if (!(!cacheData || responseMap4cache[_key])) {
+                  _context2.next = 14;
                   break;
                 }
 
+                Reflect.deleteProperty(responseMap4cache, _key);
                 return _context2.abrupt("return", new Promise(function () {}));
 
-              case 15:
-                // 没有缓存或者请求接口更快
-                cacheLoadTime[_key] = new Date().getTime();
+              case 14:
+                responseMap4cache[_key] = {
+                  loaded: true,
+                  cacheData: cacheData
+                };
                 setTimeout(function () {
-                  // 清楚获取缓存记录，以防下次调用时判断错误
-                  Reflect.deleteProperty(cacheLoadTime, _key);
+                  // 清除获取缓存记录，以防下次调用时判断错误
+                  Reflect.deleteProperty(responseMap4cache, _key);
                 }, 5000);
                 return _context2.abrupt("return", Promise.resolve({
                   data: cacheData
                 }));
 
-              case 18:
+              case 17:
                 return _context2.abrupt("return", axios(res));
 
-              case 19:
+              case 18:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, null, [[3, 10]]);
+        }, _callee2, null, [[2, 8]]);
       }));
     }, function (error) {
       return error;
     }).then(function (response) {
-      return preCheckCode(response, req);
+      return preCheckCode(response, mergeReq);
     }, function (err) {
-      return preReject(err, req);
+      return preReject(err, mergeReq);
     });
   };
 

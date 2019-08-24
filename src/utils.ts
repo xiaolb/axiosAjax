@@ -15,19 +15,21 @@ export const queryStringify = (data: any) => {
 
 // 深度继承
 export const assignDeep = function(target: any, source: any) {
-    if (typeof source !== 'object' || typeof target !== 'object') Object.assign(target, source);
+    let mergeData: any = {};
+    if (typeof source !== 'object' || typeof target !== 'object') mergeData = Object.assign({}, target, source);
     else {
         for (const key in source) {
             if (source.hasOwnProperty(key)) {
                 if (typeof source[key] === 'object' && typeof target[key] !== 'undefined' && target[key] !== null) {
-                    assignDeep(target[key], source[key]);
+                    mergeData[key] = assignDeep(target[key], source[key]);
                 } else {
                     if (!target) target = {};
-                    target[key] = typeof source[key] === 'undefined' ? target[key] : source[key];
+                    mergeData[key] = typeof source[key] === 'undefined' ? target[key] : source[key];
                 }
             }
         }
     }
+    return mergeData;
 };
 
 // 判断两个对象是否相等
@@ -37,7 +39,6 @@ export const deepEqual = function(x: any, y: any): boolean {
         return true;
     } else if (typeof x == 'object' && x != null && (typeof y == 'object' && y != null)) {
         if (Object.keys(x).length != Object.keys(y).length) return false;
-
         for (let prop in x) {
             if (prop !== 'ServerTime') {
                 if (y.hasOwnProperty(prop)) {
@@ -49,7 +50,8 @@ export const deepEqual = function(x: any, y: any): boolean {
         }
 
         return true;
-    } else return false;
+    }
+    return false;
 };
 // 判断类型
 export const isType = (type: string) => (obj: any) => ({}.toString.call(obj) === `[object ${type}]`);

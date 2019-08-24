@@ -9,25 +9,32 @@ if (!window.Promise) {
 }
 ```
 
-# Install
+## Install
 
 本项目依赖 axios，需要在工程中先安装 axios
 
 ```bash
-$ yarn add axios # 安装依赖
-$ npm i axios --save # 安装依赖
+yarn add axios # 安装依赖
+npm i axios --save # 安装依赖
 
-$ yarn add @util/ajax # 安装依赖
-$ npm i @util/ajax --save # 安装依赖
+yarn add @util/ajax # 安装依赖
+npm i @util/ajax --save # 安装依赖
 ```
 
-# API
+## API
 
 ```js
-import createAjax from '@util/ajax';
+import CreateAjax from '@util/ajax';
+const demoAjax = new CreateAjax(config);
+demoAjax.postJSON(opt);
+demoAjax.getJSON(opt);
+demoAjax.putJSON(opt);
+demoAjax.deleteJSON(opt);
+demoAjax.downloadFile(opt);
+demoAjax.postFormData(opt);
 ```
 
-# PARAMS
+## PARAMS
 
 创建 ajax 时的入参
 

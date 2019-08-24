@@ -34,6 +34,7 @@
             ajax.getJSON({
                 url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
                 cache: true,
+                isHandleError: false,
             }).then(res => {
                 responceNode.textContent = JSON.stringify(res, null, 4);
                 console.log('cache', res);
@@ -43,7 +44,6 @@
                 cache: false,
             }).then(res => {
                 responceNode.textContent = JSON.stringify(res, null, 4);
-                console.log('discache', res);
             });
         </script>
     </body>

@@ -1,4 +1,4 @@
-import { AxiosRequestConfig } from 'axios';
+import { AxiosRequestConfig, Method } from 'axios';
 
 export interface createAjaxOption {
     showLoading?: Function; // 显示loading方法
@@ -13,6 +13,10 @@ export interface ajaxOption extends AxiosRequestConfig {
     cache?: boolean; // 是否启用接口缓存
     loading?: boolean; // 是否显示loading
     isHandleError?: boolean; // 业务处理异常
+    method: Method;
+    baseURL?: string;
+    headers?: any;
+    url?: string;
 }
 export interface emptyErrorProps {
     data: any;

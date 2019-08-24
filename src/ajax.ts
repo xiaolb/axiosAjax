@@ -3,7 +3,7 @@ import qs from 'qs';
 import { hexMd5 } from '@util/md5';
 import createIndexDB, { TopsIndexDB } from '@util/indexdb';
 import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
-import { queryStringify, assignDeep, deepEqual, isType, isUndef } from './utils';
+import { queryStringify, assignDeep, deepEqual, isType } from './utils';
 
 const loop = function(params: any) {
     console.log(params);
@@ -22,7 +22,7 @@ const requestMap = {
         return hexMd5(`${req.method}@${req.baseURL}${req.url}@ak=${req.headers ? req.headers.Authorization || '' : ''}`);
     },
 };
-const cacheLoadTime: { [key: string]: any } = {};
+const responseMap4cache: { [key: string]: any } = {};
 // 获取存储接口缓存的key
 const getStoreKey = (opt: ajaxOption) =>
     hexMd5(
@@ -72,29 +72,27 @@ const createAjax = (option: createAjaxOption) => {
         if (!response) return;
         const data = response.data;
         let key = getStoreKey(opt);
-        if (isUndef(data.Code) || data.Code === 0) {
-            if (opt.cache && data.Data) {
-                try {
-                    cacheDB && cacheDB.addData4DB(key, data);
-                } catch (error) {
-                    console.log(error);
-                }
-            }
+        if (data.Code === 0) {
             // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
             if (opt.cache === false) {
-                if (cacheLoadTime[key]) {
+                if (responseMap4cache[key]) {
                     try {
-                        const cacheData = await cacheDB.getData4DB(key);
+                        const cacheData = responseMap4cache[key].cacheData || (await cacheDB.getData4DB(key));
+
                         if (cacheData && deepEqual(data, cacheData)) {
                             return new Promise(() => {});
                         }
-                        data.Data && cacheDB.addData4DB(key, data);
                     } catch (error) {
                         console.log(error);
                     }
+                    Reflect.deleteProperty(responseMap4cache, key);
                 } else {
-                    cacheLoadTime[key] = new Date().getTime();
+                    responseMap4cache[key] = {
+                        loaded: true,
+                    };
                 }
+
+                data.Data && cacheDB.addData4DB(key, data);
             }
             data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
@@ -118,6 +116,8 @@ const createAjax = (option: createAjaxOption) => {
     };
     const preReject = (err: AxiosError, opt: ajaxOption) => {
         mergeOption.hideLoading(opt);
+        let key = getStoreKey(opt);
+        Reflect.deleteProperty(responseMap4cache, key);
         // 请求丢失时触发
         const emptyError: emptyErrorProps = {
             data: null,
@@ -177,36 +177,40 @@ const createAjax = (option: createAjaxOption) => {
                 if (isType('Undefined')(objectSource[key])) delete objectSource[key];
             }
         }
-        assignDeep(req, opt);
-        requestMap.save(requestMap.getKey(req), cancel);
+        const mergeReq = assignDeep(req, opt);
+
+        requestMap.save(requestMap.getKey(mergeReq), cancel);
         return mergeOption
-            .beforeRequestHandler(req)
+            .beforeRequestHandler(mergeReq)
             .then(
                 async function(res: AxiosRequestConfig) {
-                    if (!isType('Undefined')(opt.cache)) {
-                        let cacheData;
-                        if (opt.cache === true) {
-                            let key: string = getStoreKey(opt);
-                            try {
-                                cacheLoadTime[key] = void 0;
-                                cacheData = await cacheDB.getData4DB(key);
-                            } catch (error) {
-                                console.log(error);
-                            }
-                            if (!cacheData || cacheLoadTime[key]) return new Promise(() => {}); // 没有缓存或者请求接口更快
-                            cacheLoadTime[key] = new Date().getTime();
-                            setTimeout(() => {
-                                // 清楚获取缓存记录，以防下次调用时判断错误
-                                Reflect.deleteProperty(cacheLoadTime, key);
-                            }, 5000);
-                            return Promise.resolve({ data: cacheData });
+                    let cacheData;
+                    if (opt.cache === true) {
+                        let key: string = getStoreKey(opt);
+                        try {
+                            cacheData = await cacheDB.getData4DB(key);
+                        } catch (error) {
+                            console.log(error);
                         }
+                        if (!cacheData || responseMap4cache[key]) {
+                            Reflect.deleteProperty(responseMap4cache, key);
+                            return new Promise(() => {}); // 没有缓存或者接口更快
+                        }
+                        responseMap4cache[key] = {
+                            loaded: true,
+                            cacheData,
+                        };
+                        setTimeout(() => {
+                            // 清除获取缓存记录，以防下次调用时判断错误
+                            Reflect.deleteProperty(responseMap4cache, key);
+                        }, 5000);
+                        return Promise.resolve({ data: cacheData });
                     }
                     return axios(res);
                 },
                 (error: any) => error
             )
-            .then((response: AxiosResponse) => preCheckCode(response, req), (err: AxiosError) => preReject(err, req));
+            .then((response: AxiosResponse) => preCheckCode(response, mergeReq), (err: AxiosError) => preReject(err, mergeReq));
     };
     const getJSON = (opt: ajaxOption) => {
         opt.method = 'GET';
