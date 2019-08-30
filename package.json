@@ -3,7 +3,7 @@
     "version": "0.0.4",
     "description": "ajax封装 底层基于axios",
     "main": "dist/topsAjax.common.js",
-    "module": "dist/topsAjax.esm.js",
+    "module": "dist/esm/index.esm.js",
     "unpkg": "dist/topsAjax.min.js",
     "scripts": {
         "build": "node build/build.js",
@@ -21,16 +21,17 @@
     "author": "xiekaifeng4042",
     "license": "ISC",
     "dependencies": {
-        "@util/indexdb": "^0.0.8",
+        "@util/indexdb": "^0.0.9",
         "@util/md5": "^1.0.0",
         "axios": "^0.19.0",
-        "core-js": "2",
+        "core-js": "3",
         "qs": "^6.7.0"
     },
     "peerDependencies": {
         "axios": ">=0.19.0"
     },
     "devDependencies": {
+        "@babel/cli": "^7.5.5",
         "@babel/core": "^7.5.5",
         "@babel/plugin-external-helpers": "^7.2.0",
         "@babel/plugin-proposal-optional-chaining": "^7.2.0",

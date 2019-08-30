@@ -151,7 +151,7 @@ const createAjax = (option: createAjaxOption) => {
     };
     const common = (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
         let cancel;
-        let cancelToken = new axios.CancelToken(function(c) {
+        let cancelToken = new axios.CancelToken(function(c: Function) {
             cancel = c;
         });
         if (!window || !window.indexedDB) opt.cache = void 0;
