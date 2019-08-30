@@ -1,6 +1,4 @@
 import "core-js/modules/es.symbol";
-import "core-js/modules/es.array.concat";
-import "core-js/modules/es.array.filter";
 import "core-js/modules/es.array.iterator";
 import "core-js/modules/es.object.get-own-property-descriptor";
 import "core-js/modules/es.object.get-own-property-descriptors";
@@ -8,7 +6,6 @@ import "core-js/modules/es.object.keys";
 import "core-js/modules/es.reflect.delete-property";
 import "core-js/modules/es.string.iterator";
 import "core-js/modules/es.string.split";
-import "core-js/modules/web.dom-collections.for-each";
 import "core-js/modules/web.dom-collections.iterator";
 import _regeneratorRuntime from "@babel/runtime/regenerator";
 import "regenerator-runtime/runtime";

@@ -2,7 +2,7 @@ import axios, { AxiosResponse, AxiosError, AxiosRequestConfig, CancelToken } fro
 import qs from 'qs';
 import { hexMd5 } from '@util/md5';
 import createIndexDB, { TopsIndexDB } from '@util/indexdb';
-import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
+import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types.d';
 import { queryStringify, assignDeep, deepEqual, isType } from './utils';
 
 const loop = function(params: any) {

@@ -1,6 +1,3 @@
-import "core-js/modules/es.array.concat";
-import "core-js/modules/es.array.join";
-import "core-js/modules/es.object.assign";
 import "core-js/modules/es.object.keys";
 import _typeof from "@babel/runtime/helpers/esm/typeof";
 

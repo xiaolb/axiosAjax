@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.4
+ * util/ajax v0.0.5
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -1038,84 +1038,6 @@ setToStringTag($Symbol, SYMBOL);
 
 hiddenKeys[HIDDEN] = true;
 
-var createProperty = function (object, key, value) {
-  var propertyKey = toPrimitive(key);
-  if (propertyKey in object) { objectDefineProperty.f(object, propertyKey, createPropertyDescriptor(0, value)); }
-  else { object[propertyKey] = value; }
-};
-
-var SPECIES$1 = wellKnownSymbol('species');
-
-var arrayMethodHasSpeciesSupport = function (METHOD_NAME) {
-  return !fails(function () {
-    var array = [];
-    var constructor = array.constructor = {};
-    constructor[SPECIES$1] = function () {
-      return { foo: 1 };
-    };
-    return array[METHOD_NAME](Boolean).foo !== 1;
-  });
-};
-
-var IS_CONCAT_SPREADABLE = wellKnownSymbol('isConcatSpreadable');
-var MAX_SAFE_INTEGER = 0x1FFFFFFFFFFFFF;
-var MAXIMUM_ALLOWED_INDEX_EXCEEDED = 'Maximum allowed index exceeded';
-
-var IS_CONCAT_SPREADABLE_SUPPORT = !fails(function () {
-  var array = [];
-  array[IS_CONCAT_SPREADABLE] = false;
-  return array.concat()[0] !== array;
-});
-
-var SPECIES_SUPPORT = arrayMethodHasSpeciesSupport('concat');
-
-var isConcatSpreadable = function (O) {
-  if (!isObject(O)) { return false; }
-  var spreadable = O[IS_CONCAT_SPREADABLE];
-  return spreadable !== undefined ? !!spreadable : isArray(O);
-};
-
-var FORCED = !IS_CONCAT_SPREADABLE_SUPPORT || !SPECIES_SUPPORT;
-
-// `Array.prototype.concat` method
-// https://tc39.github.io/ecma262/#sec-array.prototype.concat
-// with adding support of @@isConcatSpreadable and @@species
-_export({ target: 'Array', proto: true, forced: FORCED }, {
-  concat: function concat(arg) {
-    var arguments$1 = arguments;
- // eslint-disable-line no-unused-vars
-    var O = toObject(this);
-    var A = arraySpeciesCreate(O, 0);
-    var n = 0;
-    var i, k, length, len, E;
-    for (i = -1, length = arguments.length; i < length; i++) {
-      E = i === -1 ? O : arguments$1[i];
-      if (isConcatSpreadable(E)) {
-        len = toLength(E.length);
-        if (n + len > MAX_SAFE_INTEGER) { throw TypeError(MAXIMUM_ALLOWED_INDEX_EXCEEDED); }
-        for (k = 0; k < len; k++, n++) { if (k in E) { createProperty(A, n, E[k]); } }
-      } else {
-        if (n >= MAX_SAFE_INTEGER) { throw TypeError(MAXIMUM_ALLOWED_INDEX_EXCEEDED); }
-        createProperty(A, n++, E);
-      }
-    }
-    A.length = n;
-    return A;
-  }
-});
-
-var $filter = arrayIteration.filter;
-
-
-// `Array.prototype.filter` method
-// https://tc39.github.io/ecma262/#sec-array.prototype.filter
-// with adding support of @@species
-_export({ target: 'Array', proto: true, forced: !arrayMethodHasSpeciesSupport('filter') }, {
-  filter: function filter(callbackfn /* , thisArg */) {
-    return $filter(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
-  }
-});
-
 var UNSCOPABLES = wellKnownSymbol('unscopables');
 var ArrayPrototype = Array.prototype;
 
@@ -1337,15 +1259,21 @@ var nativeGetOwnPropertyDescriptor$2 = objectGetOwnPropertyDescriptor.f;
 
 
 var FAILS_ON_PRIMITIVES = fails(function () { nativeGetOwnPropertyDescriptor$2(1); });
-var FORCED$1 = !descriptors || FAILS_ON_PRIMITIVES;
+var FORCED = !descriptors || FAILS_ON_PRIMITIVES;
 
 // `Object.getOwnPropertyDescriptor` method
 // https://tc39.github.io/ecma262/#sec-object.getownpropertydescriptor
-_export({ target: 'Object', stat: true, forced: FORCED$1, sham: !descriptors }, {
+_export({ target: 'Object', stat: true, forced: FORCED, sham: !descriptors }, {
   getOwnPropertyDescriptor: function getOwnPropertyDescriptor(it, key) {
     return nativeGetOwnPropertyDescriptor$2(toIndexedObject(it), key);
   }
 });
+
+var createProperty = function (object, key, value) {
+  var propertyKey = toPrimitive(key);
+  if (propertyKey in object) { objectDefineProperty.f(object, propertyKey, createPropertyDescriptor(0, value)); }
+  else { object[propertyKey] = value; }
+};
 
 // `Object.getOwnPropertyDescriptors` method
 // https://tc39.github.io/ecma262/#sec-object.getownpropertydescriptors
@@ -1508,7 +1436,7 @@ if (PATCH) {
 
 var regexpExec = patchedExec;
 
-var SPECIES$2 = wellKnownSymbol('species');
+var SPECIES$1 = wellKnownSymbol('species');
 
 var REPLACE_SUPPORTS_NAMED_GROUPS = !fails(function () {
   // #replace needs built-in support for named groups.
@@ -1553,7 +1481,7 @@ var fixRegexpWellKnownSymbolLogic = function (KEY, length, exec, sham) {
       // RegExp[@@split] doesn't call the regex's exec method, but first creates
       // a new one. We need to return the patched regex when creating the new one.
       re.constructor = {};
-      re.constructor[SPECIES$2] = function () { return re; };
+      re.constructor[SPECIES$1] = function () { return re; };
     }
 
     re[SYMBOL]('');
@@ -1604,14 +1532,14 @@ var isRegexp = function (it) {
   return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : classofRaw(it) == 'RegExp');
 };
 
-var SPECIES$3 = wellKnownSymbol('species');
+var SPECIES$2 = wellKnownSymbol('species');
 
 // `SpeciesConstructor` abstract operation
 // https://tc39.github.io/ecma262/#sec-speciesconstructor
 var speciesConstructor = function (O, defaultConstructor) {
   var C = anObject(O).constructor;
   var S;
-  return C === undefined || (S = anObject(C)[SPECIES$3]) == undefined ? defaultConstructor : aFunction$1(S);
+  return C === undefined || (S = anObject(C)[SPECIES$2]) == undefined ? defaultConstructor : aFunction$1(S);
 };
 
 var charAt$1 = stringMultibyte.charAt;
@@ -1800,55 +1728,27 @@ var domIterables = {
   TouchList: 0
 };
 
-var sloppyArrayMethod = function (METHOD_NAME, argument) {
-  var method = [][METHOD_NAME];
-  return !method || !fails(function () {
-    // eslint-disable-next-line no-useless-call,no-throw-literal
-    method.call(null, argument || function () { throw 1; }, 1);
-  });
-};
-
-var $forEach$1 = arrayIteration.forEach;
-
-
-// `Array.prototype.forEach` method implementation
-// https://tc39.github.io/ecma262/#sec-array.prototype.foreach
-var arrayForEach = sloppyArrayMethod('forEach') ? function forEach(callbackfn /* , thisArg */) {
-  return $forEach$1(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
-} : [].forEach;
-
-for (var COLLECTION_NAME in domIterables) {
-  var Collection = global_1[COLLECTION_NAME];
-  var CollectionPrototype = Collection && Collection.prototype;
-  // some Chrome versions have non-configurable methods on DOMTokenList
-  if (CollectionPrototype && CollectionPrototype.forEach !== arrayForEach) { try {
-    hide(CollectionPrototype, 'forEach', arrayForEach);
-  } catch (error) {
-    CollectionPrototype.forEach = arrayForEach;
-  } }
-}
-
 var ITERATOR$2 = wellKnownSymbol('iterator');
 var TO_STRING_TAG$1 = wellKnownSymbol('toStringTag');
 var ArrayValues = es_array_iterator.values;
 
-for (var COLLECTION_NAME$1 in domIterables) {
-  var Collection$1 = global_1[COLLECTION_NAME$1];
-  var CollectionPrototype$1 = Collection$1 && Collection$1.prototype;
-  if (CollectionPrototype$1) {
+for (var COLLECTION_NAME in domIterables) {
+  var Collection = global_1[COLLECTION_NAME];
+  var CollectionPrototype = Collection && Collection.prototype;
+  if (CollectionPrototype) {
     // some Chrome versions have non-configurable methods on DOMTokenList
-    if (CollectionPrototype$1[ITERATOR$2] !== ArrayValues) { try {
-      hide(CollectionPrototype$1, ITERATOR$2, ArrayValues);
+    if (CollectionPrototype[ITERATOR$2] !== ArrayValues) { try {
+      hide(CollectionPrototype, ITERATOR$2, ArrayValues);
     } catch (error) {
-      CollectionPrototype$1[ITERATOR$2] = ArrayValues;
+      CollectionPrototype[ITERATOR$2] = ArrayValues;
     } }
-    if (!CollectionPrototype$1[TO_STRING_TAG$1]) { hide(CollectionPrototype$1, TO_STRING_TAG$1, COLLECTION_NAME$1); }
-    if (domIterables[COLLECTION_NAME$1]) { for (var METHOD_NAME in es_array_iterator) {
+    if (!CollectionPrototype[TO_STRING_TAG$1]) { hide(CollectionPrototype, TO_STRING_TAG$1, COLLECTION_NAME); }
+    if (domIterables[COLLECTION_NAME]) { for (var METHOD_NAME in es_array_iterator) {
       // some Chrome versions have non-configurable methods on DOMTokenList
-      if (CollectionPrototype$1[METHOD_NAME] !== es_array_iterator[METHOD_NAME]) { try {
-        hide(CollectionPrototype$1, METHOD_NAME, es_array_iterator[METHOD_NAME]);
+      if (CollectionPrototype[METHOD_NAME] !== es_array_iterator[METHOD_NAME]) { try {
+        hide(CollectionPrototype, METHOD_NAME, es_array_iterator[METHOD_NAME]);
       } catch (error) {
-        CollectionPrototype$1[METHOD_NAME] = es_array_iterator[METHOD_NAME];
+        CollectionPrototype[METHOD_NAME] = es_array_iterator[METHOD_NAME];
       } }
     } }
   }
@@ -4341,7 +4241,7 @@ var bindContext$1 = function (fn, that, length) {
   };
 };
 
-var SPECIES$4 = wellKnownSymbol$1('species');
+var SPECIES$3 = wellKnownSymbol$1('species');
 
 // `ArraySpeciesCreate` abstract operation
 // https://tc39.github.io/ecma262/#sec-arrayspeciescreate
@@ -4352,7 +4252,7 @@ var arraySpeciesCreate$1 = function (originalArray, length) {
     // cross-realm fallback
     if (typeof C == 'function' && (C === Array || isArray$3(C.prototype))) { C = undefined; }
     else if (isObject$1(C)) {
-      C = C[SPECIES$4];
+      C = C[SPECIES$3];
       if (C === null) { C = undefined; }
     }
   } return new (C === undefined ? Array : C)(length === 0 ? 0 : length);
@@ -4418,7 +4318,7 @@ var arrayIteration$1 = {
   findIndex: createMethod$1$1(6)
 };
 
-var $forEach$2 = arrayIteration$1.forEach;
+var $forEach$1 = arrayIteration$1.forEach;
 
 var HIDDEN$1 = sharedKey$1('hidden');
 var SYMBOL$1 = 'Symbol';
@@ -4494,7 +4394,7 @@ var $defineProperties$1 = function defineProperties(O, Properties) {
   anObject$1(O);
   var properties = toIndexedObject$1(Properties);
   var keys = objectKeys$1(properties).concat($getOwnPropertySymbols$1(properties));
-  $forEach$2(keys, function (key) {
+  $forEach$1(keys, function (key) {
     if (!descriptors$1 || $propertyIsEnumerable$1.call(properties, key)) { $defineProperty$1(O, key, properties[key]); }
   });
   return O;
@@ -4525,7 +4425,7 @@ var $getOwnPropertyDescriptor$1 = function getOwnPropertyDescriptor(O, P) {
 var $getOwnPropertyNames$1 = function getOwnPropertyNames(O) {
   var names = nativeGetOwnPropertyNames$1$1(toIndexedObject$1(O));
   var result = [];
-  $forEach$2(names, function (key) {
+  $forEach$1(names, function (key) {
     if (!has$5(AllSymbols$1, key) && !has$5(hiddenKeys$2, key)) { result.push(key); }
   });
   return result;
@@ -4535,7 +4435,7 @@ var $getOwnPropertySymbols$1 = function getOwnPropertySymbols(O) {
   var IS_OBJECT_PROTOTYPE = O === ObjectPrototype$2;
   var names = nativeGetOwnPropertyNames$1$1(IS_OBJECT_PROTOTYPE ? ObjectPrototypeSymbols$1 : toIndexedObject$1(O));
   var result = [];
-  $forEach$2(names, function (key) {
+  $forEach$1(names, function (key) {
     if (has$5(AllSymbols$1, key) && (!IS_OBJECT_PROTOTYPE || has$5(ObjectPrototype$2, key))) {
       result.push(AllSymbols$1[key]);
     }
@@ -4591,7 +4491,7 @@ _export$1({ global: true, wrap: true, forced: !nativeSymbol$1, sham: !nativeSymb
   Symbol: $Symbol$1
 });
 
-$forEach$2(objectKeys$1(WellKnownSymbolsStore$1), function (name) {
+$forEach$1(objectKeys$1(WellKnownSymbolsStore$1), function (name) {
   defineWellKnownSymbol$1(name);
 });
 
@@ -5174,7 +5074,7 @@ var HANDLED = 1;
 var UNHANDLED = 2;
 var Internal, OwnPromiseCapability, PromiseWrapper, nativeThen;
 
-var FORCED$2 = isForced_1$1(PROMISE, function () {
+var FORCED$1 = isForced_1$1(PROMISE, function () {
   // correct subclassing with @@species support
   var promise = PromiseConstructor.resolve(1);
   var empty = function () { /* empty */ };
@@ -5192,7 +5092,7 @@ var FORCED$2 = isForced_1$1(PROMISE, function () {
     && userAgent.indexOf('Chrome/66') === -1);
 });
 
-var INCORRECT_ITERATION = FORCED$2 || !checkCorrectnessOfIteration(function (iterable) {
+var INCORRECT_ITERATION = FORCED$1 || !checkCorrectnessOfIteration(function (iterable) {
   PromiseConstructor.all(iterable)['catch'](function () { /* empty */ });
 });
 
@@ -5338,7 +5238,7 @@ var internalResolve = function (promise, state, value, unwrap) {
 };
 
 // constructor polyfill
-if (FORCED$2) {
+if (FORCED$1) {
   // 25.4.3.1 Promise(executor)
   PromiseConstructor = function Promise(executor) {
     anInstance(this, PromiseConstructor, PROMISE);
@@ -5418,7 +5318,7 @@ if (FORCED$2) {
   }
 }
 
-_export$1({ global: true, wrap: true, forced: FORCED$2 }, {
+_export$1({ global: true, wrap: true, forced: FORCED$1 }, {
   Promise: PromiseConstructor
 });
 
@@ -5428,7 +5328,7 @@ setSpecies(PROMISE);
 PromiseWrapper = path$1[PROMISE];
 
 // statics
-_export$1({ target: PROMISE, stat: true, forced: FORCED$2 }, {
+_export$1({ target: PROMISE, stat: true, forced: FORCED$1 }, {
   // `Promise.reject` method
   // https://tc39.github.io/ecma262/#sec-promise.reject
   reject: function reject(r) {
@@ -5438,7 +5338,7 @@ _export$1({ target: PROMISE, stat: true, forced: FORCED$2 }, {
   }
 });
 
-_export$1({ target: PROMISE, stat: true, forced:  FORCED$2 }, {
+_export$1({ target: PROMISE, stat: true, forced:  FORCED$1 }, {
   // `Promise.resolve` method
   // https://tc39.github.io/ecma262/#sec-promise.resolve
   resolve: function resolve(x) {
@@ -5859,60 +5759,6 @@ function () {
 
   return default_1;
 }();
-
-var nativeJoin = [].join;
-
-var ES3_STRINGS = indexedObject != Object;
-var SLOPPY_METHOD = sloppyArrayMethod('join', ',');
-
-// `Array.prototype.join` method
-// https://tc39.github.io/ecma262/#sec-array.prototype.join
-_export({ target: 'Array', proto: true, forced: ES3_STRINGS || SLOPPY_METHOD }, {
-  join: function join(separator) {
-    return nativeJoin.call(toIndexedObject(this), separator === undefined ? ',' : separator);
-  }
-});
-
-var nativeAssign = Object.assign;
-
-// `Object.assign` method
-// https://tc39.github.io/ecma262/#sec-object.assign
-// should work with symbols and should have deterministic property order (V8 bug)
-var objectAssign = !nativeAssign || fails(function () {
-  var A = {};
-  var B = {};
-  // eslint-disable-next-line no-undef
-  var symbol = Symbol();
-  var alphabet = 'abcdefghijklmnopqrst';
-  A[symbol] = 7;
-  alphabet.split('').forEach(function (chr) { B[chr] = chr; });
-  return nativeAssign({}, A)[symbol] != 7 || objectKeys(nativeAssign({}, B)).join('') != alphabet;
-}) ? function assign(target, source) {
-  var arguments$1 = arguments;
- // eslint-disable-line no-unused-vars
-  var T = toObject(target);
-  var argumentsLength = arguments.length;
-  var index = 1;
-  var getOwnPropertySymbols = objectGetOwnPropertySymbols.f;
-  var propertyIsEnumerable = objectPropertyIsEnumerable.f;
-  while (argumentsLength > index) {
-    var S = indexedObject(arguments$1[index++]);
-    var keys = getOwnPropertySymbols ? objectKeys(S).concat(getOwnPropertySymbols(S)) : objectKeys(S);
-    var length = keys.length;
-    var j = 0;
-    var key;
-    while (length > j) {
-      key = keys[j++];
-      if (!descriptors || propertyIsEnumerable.call(S, key)) { T[key] = S[key]; }
-    }
-  } return T;
-} : nativeAssign;
-
-// `Object.assign` method
-// https://tc39.github.io/ecma262/#sec-object.assign
-_export({ target: 'Object', stat: true, forced: Object.assign !== objectAssign }, {
-  assign: objectAssign
-});
 
 function _typeof2(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof2 = function _typeof2(obj) { return typeof obj; }; } else { _typeof2 = function _typeof2(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof2(obj); }
 
