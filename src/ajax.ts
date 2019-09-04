@@ -94,7 +94,7 @@ const createAjax = (option: createAjaxOption) => {
 
                 data.Data && cacheDB.addData4DB(key, data);
             }
-            data.Data.cache = opt.cache;
+            if (data.Data && isType('Object')(data.Data)) data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
         }
         if (opt.isHandleError) {
