@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.5
+ * util/ajax v0.0.8
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -6002,7 +6002,7 @@ var createAjax = function createAjax(option) {
               data.Data && cacheDB.addData4DB(key, data);
 
             case 34:
-              data.Data.cache = opt.cache;
+              if (data.Data && isType('Object')(data.Data)) { data.Data.cache = opt.cache; }
               return _context.abrupt("return", Promise.resolve(data.Data));
 
             case 36:
@@ -6014,30 +6014,30 @@ var createAjax = function createAjax(option) {
               return _context.abrupt("return", Promise.reject(response.data || {}));
 
             case 38:
-              if (!(response.data && response.data.Message)) {
-                _context.next = 41;
-                break;
-              }
-
-              mergeOption.hideLoading(opt);
-              return _context.abrupt("return", Promise.resolve(null));
-
-            case 41:
               if (!(data.Code === 302)) {
-                _context.next = 44;
+                _context.next = 41;
                 break;
               }
 
               window.location.href = data.message + window.location.hash;
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 44:
+            case 41:
               if (!(data.Code === 4002 || data.Code === 4000)) {
-                _context.next = 47;
+                _context.next = 44;
                 break;
               }
 
               if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
+              return _context.abrupt("return", Promise.resolve(null));
+
+            case 44:
+              if (!(response.data && response.data.Message)) {
+                _context.next = 47;
+                break;
+              }
+
+              mergeOption.hideLoading(opt);
               return _context.abrupt("return", Promise.resolve(null));
 
             case 47:

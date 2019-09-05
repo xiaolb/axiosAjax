@@ -7,7 +7,7 @@
     "unpkg": "dist/topsAjax.min.js",
     "scripts": {
         "build": "node build/build.js",
-        "release": "bash build/release.sh",
+        "release": "node build/build.js && bash build/release.sh",
         "watch": "node build/watch.js "
     },
     "repository": {
