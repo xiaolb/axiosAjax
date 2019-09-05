@@ -100,16 +100,17 @@ const createAjax = (option: createAjaxOption) => {
         if (opt.isHandleError) {
             return Promise.reject(response.data || {});
         }
-        if (response.data && response.data.Message) {
-            mergeOption.hideLoading(opt);
-            return Promise.resolve(null);
-        }
+
         if (data.Code === 302) {
             window.location.href = data.message + window.location.hash;
             return Promise.resolve(null);
         }
         if (data.Code === 4002 || data.Code === 4000) {
             if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) mergeOption.loginCallback(data);
+            return Promise.resolve(null);
+        }
+        if (response.data && response.data.Message) {
+            mergeOption.hideLoading(opt);
             return Promise.resolve(null);
         }
         return Promise.reject(opt.isHandleError ? response.data : {});
