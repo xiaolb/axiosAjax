@@ -16,6 +16,7 @@ export const queryStringify = (data: any) => {
 // 深度继承
 export const assignDeep = function(target: any, source: any) {
     let mergeData: any = {};
+    if (target) mergeData = Object.assign({}, target);
     if (typeof source !== 'object' || typeof target !== 'object') mergeData = Object.assign({}, target, source);
     else {
         for (const key in source) {

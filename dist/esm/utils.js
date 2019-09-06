@@ -20,6 +20,7 @@ export var queryStringify = function queryStringify(data) {
 
 export var assignDeep = function assignDeep(target, source) {
   var mergeData = {};
+  if (target) mergeData = Object.assign({}, target);
   if (_typeof(source) !== 'object' || _typeof(target) !== 'object') mergeData = Object.assign({}, target, source);else {
     for (var key in source) {
       if (source.hasOwnProperty(key)) {

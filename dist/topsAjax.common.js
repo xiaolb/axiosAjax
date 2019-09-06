@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.8
+ * util/ajax v0.0.9
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -5795,6 +5795,7 @@ var queryStringify = function queryStringify(data) {
 
 var assignDeep = function assignDeep(target, source) {
   var mergeData = {};
+  if (target) { mergeData = Object.assign({}, target); }
   if (_typeof(source) !== 'object' || _typeof(target) !== 'object') { mergeData = Object.assign({}, target, source); }else {
     for (var key in source) {
       if (source.hasOwnProperty(key)) {
