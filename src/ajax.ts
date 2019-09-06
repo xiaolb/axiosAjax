@@ -1,18 +1,21 @@
-import axios, { AxiosResponse, AxiosError, AxiosRequestConfig, CancelToken } from 'axios';
+import axios, { AxiosResponse, AxiosError, AxiosRequestConfig, Canceler } from 'axios';
 import qs from 'qs';
 import { hexMd5 } from '@util/md5';
 import createIndexDB, { TopsIndexDB } from '@util/indexdb';
-import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps } from './types';
-import { queryStringify, assignDeep, deepEqual, isType } from './utils';
+import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps, INDICATOR, AxiosRequestConfigMergeWithAjaxOption } from './types';
+import { queryStringify, assignDeep, deepEqual, isType, createMaybeAbort } from './utils';
 
 const loop = function(params: any) {
     console.log(params);
 };
+
+const PENDING = new Promise(() => {});
+
 let cacheDB: TopsIndexDB = null;
 
 const requestMap = {
     requests: {},
-    save(key: string, cancel: CancelToken) {
+    save(key: string, cancel: Canceler) {
         if (this.requests[key]) {
             this.requests[key]();
         }
@@ -22,7 +25,8 @@ const requestMap = {
         return hexMd5(`${req.method}@${req.baseURL}${req.url}@ak=${req.headers ? req.headers.Authorization || '' : ''}`);
     },
 };
-const responseMap4cache: { [key: string]: any } = {};
+// const responseMap4cache: { [key: string]: any } = {};
+
 // 获取存储接口缓存的key
 const getStoreKey = (opt: ajaxOption) =>
     hexMd5(
@@ -50,8 +54,15 @@ const createAjax = (option: createAjaxOption) => {
         ...option,
     };
     cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
-    const preCheckCode = async function(response: any, opt: ajaxOption) {
-        mergeOption.hideLoading(opt);
+    const preCheckCode = async function(response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
+        // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
+        // cache和interface为falsely的值时，说明是该组请求第一次执行回调
+        if (indicator && !indicator.cache && !indicator.interface) {
+            mergeOption.hideLoading(opt);
+        } else {
+            // 正常流程
+            mergeOption.hideLoading(opt);
+        }
         if (response.request && response.request.responseType === 'blob') {
             if (response.headers['content-disposition']) {
                 return Promise.resolve(response);
@@ -73,23 +84,20 @@ const createAjax = (option: createAjaxOption) => {
         const data = response.data;
         let key = getStoreKey(opt);
         if (data.Code === 0) {
-            // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
-            if (opt.cache === false) {
-                if (responseMap4cache[key]) {
+            if (indicator) {
+                // indexdb 比 接口快
+                if (indicator.cache) {
                     try {
-                        const cacheData = responseMap4cache[key].cacheData || (await cacheDB.getData4DB(key));
+                        const cacheData = indicator.cache || (await cacheDB.getData4DB(key));
 
                         if (cacheData && deepEqual(data, cacheData)) {
-                            return new Promise(() => {});
+                            return PENDING;
                         }
                     } catch (error) {
                         console.log(error);
                     }
-                    Reflect.deleteProperty(responseMap4cache, key);
                 } else {
-                    responseMap4cache[key] = {
-                        loaded: true,
-                    };
+                    indicator.interface = true;
                 }
 
                 data.Data && cacheDB.addData4DB(key, data);
@@ -114,10 +122,8 @@ const createAjax = (option: createAjaxOption) => {
         }
         return Promise.reject(opt.isHandleError ? response.data : {});
     };
-    const preReject = (err: AxiosError, opt: ajaxOption) => {
+    const preReject = (err: AxiosError, opt: AxiosRequestConfigMergeWithAjaxOption) => {
         mergeOption.hideLoading(opt);
-        let key = getStoreKey(opt);
-        Reflect.deleteProperty(responseMap4cache, key);
         // 请求丢失时触发
         const emptyError: emptyErrorProps = {
             data: null,
@@ -149,16 +155,25 @@ const createAjax = (option: createAjaxOption) => {
         // customError表示是否自定义错误处理
         return Promise.reject(opt.isHandleError ? response.data || {} : {});
     };
-    const common = (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
-        let cancel;
-        let cancelToken = new axios.CancelToken(function(c) {
+
+    const cache_flow_common = (indicator: INDICATOR, beforeHandle: Promise<AxiosRequestConfigMergeWithAjaxOption>) => async () => {
+        common = normal_flow_common;
+
+        const req = await beforeHandle;
+
+        return axios(req).then((response: AxiosResponse) => preCheckCode(response, req, indicator), (err: AxiosError) => preReject(err, req));
+    };
+
+    const normal_flow_common = async (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
+        if (!window || !window.indexedDB) opt.cache = void 0;
+        let indicator: INDICATOR;
+        let cancel: Canceler;
+        let cancelCache: any;
+        const cancelToken = new axios.CancelToken(function(c: Canceler) {
             cancel = c;
         });
-        if (!window || !window.indexedDB) opt.cache = void 0;
-        if (opt.loading) {
-            mergeOption.showLoading(opt);
-        }
-        const req: AxiosRequestConfig = {
+
+        let req: AxiosRequestConfigMergeWithAjaxOption = {
             ...mergeOption.requestConfig,
             method: 'GET',
             url: '',
@@ -171,47 +186,77 @@ const createAjax = (option: createAjaxOption) => {
             withCredentials: true,
             cancelToken,
         };
-        let objectSource: any = opt;
-        for (const key in objectSource) {
-            if (objectSource.hasOwnProperty(key)) {
-                if (isType('Undefined')(objectSource[key])) delete objectSource[key];
+
+        for (const key in opt) {
+            if (opt.hasOwnProperty(key)) {
+                if (isType('Undefined')(opt[key])) delete opt[key];
             }
         }
-        const mergeReq = assignDeep(req, opt);
 
-        requestMap.save(requestMap.getKey(mergeReq), cancel);
-        return mergeOption
-            .beforeRequestHandler(mergeReq)
-            .then(
-                async function(res: AxiosRequestConfig) {
-                    let cacheData;
-                    if (opt.cache === true) {
+        req = assignDeep(req, opt);
+
+        if (opt.loading) {
+            mergeOption.showLoading(req);
+        }
+
+        requestMap.save(requestMap.getKey(req), () => {
+            cancel();
+            cancelCache && cancelCache();
+        });
+
+        const beforeHandle: Promise<AxiosRequestConfigMergeWithAjaxOption> = mergeOption.beforeRequestHandler(req);
+
+        let fn;
+        if (opt.cache === true) {
+            indicator = {
+                cache: false,
+                interface: false,
+            };
+            common = cache_flow_common(indicator, beforeHandle); // normal_flow_common在走cache流程时必须能同步执行到这一步（关键）
+            const { maybeAbort, abort } = createMaybeAbort();
+            cancelCache = abort;
+            fn = function() {
+                const { promise, abort: _abort } = maybeAbort(
+                    new Promise(async () => {
+                        let cacheData;
                         let key: string = getStoreKey(opt);
                         try {
                             cacheData = await cacheDB.getData4DB(key);
                         } catch (error) {
                             console.log(error);
                         }
-                        if (!cacheData || responseMap4cache[key]) {
-                            Reflect.deleteProperty(responseMap4cache, key);
-                            return new Promise(() => {}); // 没有缓存或者接口更快
+                        if (!cacheData || indicator.interface) {
+                            return PENDING; // 没有缓存或者接口更快
                         }
-                        responseMap4cache[key] = {
-                            loaded: true,
-                            cacheData,
-                        };
-                        setTimeout(() => {
-                            // 清除获取缓存记录，以防下次调用时判断错误
-                            Reflect.deleteProperty(responseMap4cache, key);
-                        }, 5000);
-                        return Promise.resolve({ data: cacheData });
-                    }
-                    return axios(res);
-                },
-                (error: any) => error
-            )
-            .then((response: AxiosResponse) => preCheckCode(response, mergeReq), (err: AxiosError) => preReject(err, mergeReq));
+                        indicator.cache = cacheData;
+                        return { data: cacheData };
+                    })
+                );
+                cancelCache = _abort;
+                return promise.then(async (response: any) => {
+                    // 保持preCheckCode和preReject中的req参数与正常请求的参数一致
+                    req = await beforeHandle;
+                    return response;
+                });
+            };
+        } else {
+            req = await beforeHandle;
+            fn = axios;
+        }
+
+        try {
+            const response = await fn(req);
+            return preCheckCode(response, req, indicator);
+        } catch (err) {
+            return preReject(err, req);
+        }
     };
+
+    let common: any;
+    common = normal_flow_common;
+
+    /* ------------------------------------------------------------------------------------------------------------------------------ */
+
     const getJSON = (opt: ajaxOption) => {
         opt.method = 'GET';
         if (opt.params && Object.keys(opt.params).length) {
