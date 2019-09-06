@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.9
+ * util/ajax v0.0.10
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -5939,117 +5939,135 @@ var createAjax = function createAjax(option) {
 
             case 10:
               data = response.data;
+
+              if (data) {
+                _context.next = 16;
+                break;
+              }
+
+              if (!opt.isHandleError) {
+                _context.next = 14;
+                break;
+              }
+
+              return _context.abrupt("return", Promise.reject(response || {}));
+
+            case 14:
+              mergeOption.errorMsgHandler("\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\uFF01[".concat(response.status, "]"));
+              return _context.abrupt("return", Promise.resolve(null));
+
+            case 16:
               key = getStoreKey(opt);
 
               if (!(data.Code === 0)) {
-                _context.next = 36;
+                _context.next = 41;
                 break;
               }
 
               if (!(opt.cache === false)) {
-                _context.next = 34;
+                _context.next = 39;
                 break;
               }
 
               if (!responseMap4cache[key]) {
-                _context.next = 32;
+                _context.next = 37;
                 break;
               }
 
-              _context.prev = 15;
+              _context.prev = 20;
               _context.t0 = responseMap4cache[key].cacheData;
 
               if (_context.t0) {
-                _context.next = 21;
+                _context.next = 26;
                 break;
               }
 
-              _context.next = 20;
+              _context.next = 25;
               return cacheDB.getData4DB(key);
 
-            case 20:
+            case 25:
               _context.t0 = _context.sent;
 
-            case 21:
+            case 26:
               cacheData = _context.t0;
 
               if (!(cacheData && deepEqual(data, cacheData))) {
-                _context.next = 24;
+                _context.next = 29;
                 break;
               }
 
               return _context.abrupt("return", new Promise(function () {}));
 
-            case 24:
-              _context.next = 29;
+            case 29:
+              _context.next = 34;
               break;
 
-            case 26:
-              _context.prev = 26;
-              _context.t1 = _context["catch"](15);
+            case 31:
+              _context.prev = 31;
+              _context.t1 = _context["catch"](20);
               console.log(_context.t1);
 
-            case 29:
+            case 34:
               Reflect.deleteProperty(responseMap4cache, key);
-              _context.next = 33;
+              _context.next = 38;
               break;
 
-            case 32:
+            case 37:
               responseMap4cache[key] = {
                 loaded: true
               };
 
-            case 33:
+            case 38:
               data.Data && cacheDB.addData4DB(key, data);
 
-            case 34:
+            case 39:
               if (data.Data && isType('Object')(data.Data)) { data.Data.cache = opt.cache; }
               return _context.abrupt("return", Promise.resolve(data.Data));
 
-            case 36:
+            case 41:
               if (!opt.isHandleError) {
-                _context.next = 38;
+                _context.next = 43;
                 break;
               }
 
               return _context.abrupt("return", Promise.reject(response.data || {}));
 
-            case 38:
+            case 43:
               if (!(data.Code === 302)) {
-                _context.next = 41;
+                _context.next = 46;
                 break;
               }
 
               window.location.href = data.message + window.location.hash;
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 41:
+            case 46:
               if (!(data.Code === 4002 || data.Code === 4000)) {
-                _context.next = 44;
+                _context.next = 49;
                 break;
               }
 
               if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 44:
+            case 49:
               if (!(response.data && response.data.Message)) {
-                _context.next = 47;
+                _context.next = 52;
                 break;
               }
 
               mergeOption.hideLoading(opt);
               return _context.abrupt("return", Promise.resolve(null));
 
-            case 47:
+            case 52:
               return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
 
-            case 48:
+            case 53:
             case "end":
               return _context.stop();
           }
         }
-      }, _callee, null, [[15, 26]]);
+      }, _callee, null, [[20, 31]]);
     }));
 
     return function preCheckCode(_x, _x2) {

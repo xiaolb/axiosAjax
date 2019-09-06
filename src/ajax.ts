@@ -71,6 +71,13 @@ const createAjax = (option: createAjaxOption) => {
         // 通用请求判断
         if (!response) return;
         const data = response.data;
+        if (!data) {
+            if (opt.isHandleError) {
+                return Promise.reject(response || {});
+            }
+            mergeOption.errorMsgHandler(`网络错误，请稍后再试！[${response.status}]`);
+            return Promise.resolve(null);
+        }
         let key = getStoreKey(opt);
         if (data.Code === 0) {
             // 缓存接口，第二次请求判断缓存和接口返回数据是否相同
