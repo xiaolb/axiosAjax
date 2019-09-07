@@ -46,7 +46,7 @@ export const deepEqual = function(x: any, y: any): boolean {
                     if (!deepEqual(x[prop], y[prop])) {
                         return false;
                     }
-                } else return false;
+                }
             }
         }
 
@@ -59,3 +59,64 @@ export const isType = (type: string) => (obj: any) => ({}.toString.call(obj) ===
 
 // 判断是否undefined
 export const isUndef = isType('Undefined');
+
+// export function maybeAbort(p: Promise<any>) {
+//     let abort;
+//     const pending = Promise.race([
+//         p,
+//         new Promise((resolve, reject) => {
+//             abort = () => reject('abort');
+//         }),
+//     ]).catch((e: any) => {
+//         if (e === 'abort') return new Promise(() => { });
+//         throw e;
+//     });
+//     return { pending, abort };
+// }
+
+export function createMaybeAbort() {
+    const loop = () => {};
+    let isAbort = false;
+    let _export: {
+        getAbortStatus(): boolean;
+        abort(): void;
+        maybeAbort(
+            p: Promise<any>
+        ): {
+            promise: Promise<any>;
+            abort(): void;
+        };
+    } 
+    _export = {} as typeof _export;
+    _export.getAbortStatus = function() {
+        return isAbort;
+    };
+    _export.abort = function() {
+        isAbort = true;
+    };
+    _export.maybeAbort = function(p) {
+        const pending = new Promise(() => {});
+        let promise = pending;
+        let abort = loop;
+        if (isAbort) {
+            return {
+                promise,
+                abort,
+            };
+        }
+        promise = Promise.race([
+            p,
+            new Promise((resolve, reject) => {
+                abort = () => {
+                    isAbort = true;
+                    reject('abort');
+                };
+            }),
+        ]).catch((e: any) => {
+            if (e === 'abort') return pending;
+            throw e;
+        });
+        return { promise, abort };
+    };
+    return _export;
+}
