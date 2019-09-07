@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.11
+ * util/ajax v0.0.12
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -6126,13 +6126,15 @@ var createAjax = function createAjax(option) {
     return Promise.reject(opt.isHandleError ? response.data || {} : {});
   };
 
-  var common = function common() {
-    var opt = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {
+  var common = function common(opt) {
+    var defaultAjaxOption = {
       url: '',
       method: 'GET',
       loading: false,
-      isHandleError: false
+      isHandleError: false,
+      similarityCancel: true
     };
+    opt = Object.assign(defaultAjaxOption, opt);
     var cancel;
     var cancelToken = new axios.CancelToken(function (c) {
       cancel = c;
@@ -6165,7 +6167,12 @@ var createAjax = function createAjax(option) {
     }
 
     var mergeReq = assignDeep(req, opt);
-    requestMap.save(requestMap.getKey(mergeReq), cancel);
+    console.log(mergeReq);
+
+    if (mergeReq.similarityCancel) {
+      requestMap.save(requestMap.getKey(mergeReq), cancel);
+    }
+
     return mergeOption.beforeRequestHandler(mergeReq).then(
     /*#__PURE__*/
     function () {

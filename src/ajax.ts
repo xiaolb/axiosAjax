@@ -161,7 +161,15 @@ const createAjax = (option: createAjaxOption) => {
         // customError表示是否自定义错误处理
         return Promise.reject(opt.isHandleError ? response.data || {} : {});
     };
-    const common = (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
+    const common = (opt: ajaxOption) => {
+        const defaultAjaxOption = {
+            url: '',
+            method: 'GET',
+            loading: false,
+            isHandleError: false,
+            similarityCancel: true,
+        };
+        opt = Object.assign(defaultAjaxOption, opt);
         let cancel;
         let cancelToken = new axios.CancelToken(function(c: Function) {
             cancel = c;
@@ -190,8 +198,11 @@ const createAjax = (option: createAjaxOption) => {
             }
         }
         const mergeReq = assignDeep(req, opt);
+        console.log(mergeReq);
 
-        requestMap.save(requestMap.getKey(mergeReq), cancel);
+        if (mergeReq.similarityCancel) {
+            requestMap.save(requestMap.getKey(mergeReq), cancel);
+        }
         return mergeOption
             .beforeRequestHandler(mergeReq)
             .then(

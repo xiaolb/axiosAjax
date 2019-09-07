@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <script src="./axios.min.js"></script>
+        <script src="./topsAjax.js"></script>
+        <title>ajax-demo</title>
+        <style></style>
+    </head>
+    <body>
+        <div>
+            <span id="loading"></span>
+            <p id="error"></p>
+            <pre id="responceContent"></pre>
+        </div>
+        <script>
+            const loadingNode = document.querySelector('#loading');
+            const errorNode = document.querySelector('#error');
+            const responceNode = document.querySelector('#responceContent');
+            var ajax = topsAjax({
+                showLoading() {
+                    loadingNode.textContent = 'loading开启';
+                },
+                hideLoading() {
+                    loadingNode.textContent = 'loading关闭';
+                },
+                projectName: 'demo6',
+                errorMsgHandler(msg) {
+                    errorNode.textContent = msg;
+                },
+            });
+            ajax.getJSON({
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
+                params: {
+                    _: 12,
+                },
+                similarityCancel: false,
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                console.log('res', res);
+            });
+            ajax.getJSON({
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
+                params: {
+                    _: 13,
+                },
+                similarityCancel: false,
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                console.log('res', res);
+            });
+            ajax.getJSON({
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
+                params: {
+                    _: 14,
+                },
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                console.log('res', res);
+            });
+            ajax.getJSON({
+                url: 'https://gateway.apitops.com/broker-service-api/v1/newHouse/getNewHouseDetail/1174362',
+                params: {
+                    _: 15,
+                },
+            }).then(res => {
+                responceNode.textContent = JSON.stringify(res, null, 4);
+                console.log('res', res);
+            });
+        </script>
+    </body>
+</html>
