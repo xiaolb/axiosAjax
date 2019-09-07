@@ -118,6 +118,10 @@ const createAjax = (option: createAjaxOption) => {
         }
         if (response.data && response.data.Message) {
             mergeOption.hideLoading(opt);
+            if (opt.isHandleError) {
+                return Promise.reject(response.data);
+            }
+            mergeOption.errorMsgHandler(response.data.Message);
             return Promise.resolve(null);
         }
         return Promise.reject(opt.isHandleError ? response.data : {});

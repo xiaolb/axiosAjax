@@ -228,17 +228,27 @@ var createAjax = function createAjax(option) {
 
             case 49:
               if (!(response.data && response.data.Message)) {
-                _context.next = 52;
+                _context.next = 55;
                 break;
               }
 
               mergeOption.hideLoading(opt);
-              return _context.abrupt("return", Promise.resolve(null));
 
-            case 52:
-              return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
+              if (!opt.isHandleError) {
+                _context.next = 53;
+                break;
+              }
+
+              return _context.abrupt("return", Promise.reject(response.data));
 
             case 53:
+              mergeOption.errorMsgHandler(response.data.Message);
+              return _context.abrupt("return", Promise.resolve(null));
+
+            case 55:
+              return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
+
+            case 56:
             case "end":
               return _context.stop();
           }
