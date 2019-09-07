@@ -54,7 +54,7 @@ const createAjax = (option: createAjaxOption) => {
         ...option,
     };
     cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
-    const preCheckCode = async function(response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
+    const preCheckCode = function(response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
         // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
         // cache和interface为falsely的值时，说明是该组请求第一次执行回调
         if (indicator && !indicator.cache && !indicator.interface) {
@@ -82,26 +82,7 @@ const createAjax = (option: createAjaxOption) => {
         // 通用请求判断
         if (!response) return;
         const data = response.data;
-        let key = getStoreKey(opt);
         if (data.Code === 0) {
-            if (indicator) {
-                // indexdb 比 接口快
-                if (indicator.cache) {
-                    try {
-                        const cacheData = indicator.cache || (await cacheDB.getData4DB(key));
-
-                        if (cacheData && deepEqual(data, cacheData)) {
-                            return PENDING;
-                        }
-                    } catch (error) {
-                        console.log(error);
-                    }
-                } else {
-                    indicator.interface = true;
-                }
-
-                data.Data && cacheDB.addData4DB(key, data);
-            }
             data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
         }
@@ -156,14 +137,39 @@ const createAjax = (option: createAjaxOption) => {
         return Promise.reject(opt.isHandleError ? response.data || {} : {});
     };
 
+    // cache参数为true时，第一次调用common之后，common会指向cache_flow_common
+    // cache_flow_common用于处理真实的ajax请求
     const cache_flow_common = (indicator: INDICATOR, beforeHandle: Promise<AxiosRequestConfigMergeWithAjaxOption>) => async () => {
-        common = normal_flow_common;
+        common = normal_flow_common; // common重新指向正常流程的请求函数
 
         const req = await beforeHandle;
-
-        return axios(req).then((response: AxiosResponse) => preCheckCode(response, req, indicator), (err: AxiosError) => preReject(err, req));
+        return axios(req).then(
+            async (response: AxiosResponse) => {
+                indicator.interface = true;
+                console.log('use ajax');
+                // 在preCheckCode中判断执行阶段较繁琐
+                // 将缓存的比较和读写从preCheckCode抽离
+                if (response.data.Code === 0) {
+                    let key = getStoreKey(req);
+                    const cacheData = indicator.cache || (await cacheDB.getData4DB(key));
+                    // 内容一致时
+                    if (cacheData && deepEqual(response.data, cacheData)) {
+                        // 内容已经被第一阶段（取indexdb）回调过或者将要被回调
+                        if (indicator.cache) {
+                            return PENDING;
+                        }
+                    } else {
+                        // 内容不一致，重写缓存
+                        response.data.Data && cacheDB.addData4DB(key, response.data);
+                    }
+                }
+                return preCheckCode(response, req, indicator);
+            },
+            (err: AxiosError) => preReject(err, req)
+        );
     };
 
+    // 在cache为true时请求indexdb，否则直接请求接口
     const normal_flow_common = async (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
         if (!window || !window.indexedDB) opt.cache = void 0;
         let indicator: INDICATOR;
@@ -217,10 +223,14 @@ const createAjax = (option: createAjaxOption) => {
             cancelCache = abort;
             fn = function() {
                 const { promise, abort: _abort } = maybeAbort(
-                    new Promise(async () => {
+                    (async () => {
                         let cacheData;
                         let key: string = getStoreKey(opt);
                         try {
+                            // // 延迟读取，模拟读取较慢的时候
+                            // await new Promise(resolve => {
+                            //     setTimeout(resolve, 5000);
+                            // });
                             cacheData = await cacheDB.getData4DB(key);
                         } catch (error) {
                             console.log(error);
@@ -228,9 +238,10 @@ const createAjax = (option: createAjaxOption) => {
                         if (!cacheData || indicator.interface) {
                             return PENDING; // 没有缓存或者接口更快
                         }
+                        console.log('use cache');
                         indicator.cache = cacheData;
                         return { data: cacheData };
-                    })
+                    })()
                 );
                 cancelCache = _abort;
                 return promise.then(async (response: any) => {

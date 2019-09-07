@@ -75,19 +75,29 @@ export const isUndef = isType('Undefined');
 
 export function createMaybeAbort() {
     const loop = () => {};
-    const _export: any = {
-        isAbort: false,
+    let isAbort = false;
+    let _export: {
+        getAbortStatus(): boolean;
+        abort(): void;
+        maybeAbort(
+            p: Promise<any>
+        ): {
+            promise: Promise<any>;
+            abort(): void;
+        };
+    } 
+    _export = {} as typeof _export;
+    _export.getAbortStatus = function() {
+        return isAbort;
     };
-    const defaultAbort = function() {
-        this.isAbort = true;
-    }.bind(_export);
-
-    _export.abort = defaultAbort;
-    _export.maybeAbort = function(p: Promise<any>) {
+    _export.abort = function() {
+        isAbort = true;
+    };
+    _export.maybeAbort = function(p) {
         const pending = new Promise(() => {});
         let promise = pending;
         let abort = loop;
-        if (this.isAbort) {
+        if (isAbort) {
             return {
                 promise,
                 abort,
@@ -96,8 +106,8 @@ export function createMaybeAbort() {
         promise = Promise.race([
             p,
             new Promise((resolve, reject) => {
-                this.abort = () => {
-                    this.isAbort = true;
+                abort = () => {
+                    isAbort = true;
                     reject('abort');
                 };
             }),
