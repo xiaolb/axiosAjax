@@ -33,11 +33,11 @@ const configs = {
         file: resolve('dist/topsAjax.common.js'),
         format: 'cjs',
     },
-    esm: {
-        input: resolve('src/index.esm.js'),
-        file: resolve('dist/topsAjax.esm.js'),
-        format: 'es',
-    },
+    // esm: {
+    //     input: resolve('src/index.esm.js'),
+    //     file: resolve('dist/topsAjax.esm.js'),
+    //     format: 'es',
+    // },
 };
 
 function genConfig(opts) {

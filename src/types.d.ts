@@ -13,10 +13,7 @@ export interface ajaxOption extends AxiosRequestConfig {
     cache?: boolean; // 是否启用接口缓存
     loading?: boolean; // 是否显示loading
     isHandleError?: boolean; // 业务处理异常
-    method?: Method;
-    baseURL?: string;
-    headers?: any;
-    url?: string;
+    similarityCancel?: boolean; // 取消相似的请求，最后一个有效 默认启用
     [key: string]: any;
 }
 export interface emptyErrorProps {

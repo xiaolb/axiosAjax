@@ -9,6 +9,15 @@ const configs = require('./configs');
 if (!fs.existsSync('dist')) {
     fs.mkdirSync('dist');
 }
+// 打包esm
+shelljs.rm('-rf', './dist/esm');
+if (!fs.existsSync('dist/esm')) {
+    fs.mkdirSync('dist/esm');
+}
+
+shelljs.exec('npx tsc && babel ./.temp -d ./dist/esm');
+shelljs.rm('-rf', './.temp');
+shelljs.cp('-R', './src/index.esm.js', './dist/esm/index.esm.js');
 
 build(Object.keys(configs).map(key => configs[key]));
 function build(builds) {

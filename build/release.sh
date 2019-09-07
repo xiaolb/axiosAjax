@@ -11,12 +11,15 @@ echo    # (optional) move to a new line
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   echo "Releasing $VERSION ..."
-
-  echo "Enter commit content: "
-  read COMMENT
-  # commit
-  git add .
-  git commit -m "[build] $COMMENT"
+  check_status=$(git status |grep "git add")
+  if [[ -n $check_status ]]
+  then
+    echo "Enter commit content: "
+    read COMMENT
+    # commit
+    git add .
+    git commit -m "[build] $COMMENT"
+  fi
   if [$PACKAGE_VERSION != $VERSION ]
   then
     npm version $VERSION --message "[release] $VERSION"

@@ -3,7 +3,22 @@
         [
             "@babel/preset-env",
             {
-                "modules": false
+                "modules": false,
+                "useBuiltIns": "usage",
+                "corejs": 3,
+                "targets": {
+                    "browsers": ["last 1 version", "> 5%", "not dead"]
+                },
+                "exclude": [
+                    "es.promise",
+                    "es.object.to-string",
+                    "web.url",
+                    "web.dom-collections.for-each",
+                    "es.array.filter",
+                    "es.array.concat",
+                    "es.object.assign",
+                    "es.array.join"
+                ]
             }
         ]
     ],

@@ -4,11 +4,11 @@
             "*": ["types/*"]
         },
         "baseUrl": ".",
-        "outDir": "./dist/",
+        "outDir": "./.temp/",
         "sourceMap": true,
         "noImplicitAny": true,
-        "module": "es2015",
-        "target": "es6",
+        "module": "esNext",
+        "target": "esNext",
         "jsx": "preserve",
         "experimentalDecorators": true,
         "allowJs": true,
@@ -17,7 +17,7 @@
         "allowSyntheticDefaultImports": true,
         "lib": ["es5", "es2015.promise", "es6", "dom", "es2017"]
     },
-    "exclude": ["node_modules"],
-    "include": ["./src/**/*", "examples/qrcode.js"],
+    "exclude": ["node_modules", "src/*.d.ts"],
+    "include": ["src/*.ts"],
     "compileOnSave": false
 }

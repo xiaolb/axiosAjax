@@ -82,23 +82,35 @@ const createAjax = (option: createAjaxOption) => {
         // 通用请求判断
         if (!response) return;
         const data = response.data;
+        if (!data) {
+            if (opt.isHandleError) {
+                return Promise.reject(response || {});
+            }
+            mergeOption.errorMsgHandler(`网络错误，请稍后再试！[${response.status}]`);
+            return Promise.resolve(null);
+        }        
         if (data.Code === 0) {
-            data.Data.cache = opt.cache;
+            if (data.Data && isType('Object')(data.Data)) data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
         }
         if (opt.isHandleError) {
             return Promise.reject(response.data || {});
         }
-        if (response.data && response.data.Message) {
-            mergeOption.hideLoading(opt);
-            return Promise.resolve(null);
-        }
+
         if (data.Code === 302) {
             window.location.href = data.message + window.location.hash;
             return Promise.resolve(null);
         }
         if (data.Code === 4002 || data.Code === 4000) {
             if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) mergeOption.loginCallback(data);
+            return Promise.resolve(null);
+        }
+        if (response.data && response.data.Message) {
+            mergeOption.hideLoading(opt);
+            if (opt.isHandleError) {
+                return Promise.reject(response.data);
+            }
+            mergeOption.errorMsgHandler(response.data.Message);
             return Promise.resolve(null);
         }
         return Promise.reject(opt.isHandleError ? response.data : {});
@@ -172,6 +184,14 @@ const createAjax = (option: createAjaxOption) => {
     // 在cache为true时请求indexdb，否则直接请求接口
     const normal_flow_common = async (opt: ajaxOption = { url: '', method: 'GET', loading: false, isHandleError: false }) => {
         if (!window || !window.indexedDB) opt.cache = void 0;
+        const defaultAjaxOption = {
+            url: '',
+            method: 'GET',
+            loading: false,
+            isHandleError: false,
+            similarityCancel: true,
+        };
+        opt = Object.assign(defaultAjaxOption, opt);
         let indicator: INDICATOR;
         let cancel: Canceler;
         let cancelCache: any;
@@ -205,10 +225,12 @@ const createAjax = (option: createAjaxOption) => {
             mergeOption.showLoading(req);
         }
 
-        requestMap.save(requestMap.getKey(req), () => {
-            cancel();
-            cancelCache && cancelCache();
-        });
+        if (req.similarityCancel) {
+            requestMap.save(requestMap.getKey(req), () => {
+                cancel();
+                cancelCache && cancelCache();
+            });
+        }
 
         const beforeHandle: Promise<AxiosRequestConfigMergeWithAjaxOption> = mergeOption.beforeRequestHandler(req);
 
