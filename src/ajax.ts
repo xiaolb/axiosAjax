@@ -17,7 +17,7 @@ const requestMap = {
     requests: {},
     save(key: string, cancel: Canceler) {
         if (this.requests[key]) {
-            this.requests[key]();
+            this.requests[key]('too many similarity request');
         }
         this.requests[key] = cancel;
     },
@@ -88,7 +88,7 @@ const createAjax = (option: createAjaxOption) => {
             }
             mergeOption.errorMsgHandler(`网络错误，请稍后再试！[${response.status}]`);
             return Promise.resolve(null);
-        }        
+        }
         if (data.Code === 0) {
             if (data.Data && isType('Object')(data.Data)) data.Data.cache = opt.cache;
             return Promise.resolve(data.Data);
@@ -121,6 +121,7 @@ const createAjax = (option: createAjaxOption) => {
         const emptyError: emptyErrorProps = {
             data: null,
         };
+        if (err instanceof axios.Cancel) return Promise.resolve(null);
         const response = err.response || emptyError;
         if (err.message === 'Network Error') {
             err.message = '网络错误，请稍后再试！';

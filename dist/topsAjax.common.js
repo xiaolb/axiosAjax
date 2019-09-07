@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.12
+ * util/ajax v0.0.13
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -1300,17 +1300,6 @@ var FAILS_ON_PRIMITIVES$1 = fails(function () { objectKeys(1); });
 _export({ target: 'Object', stat: true, forced: FAILS_ON_PRIMITIVES$1 }, {
   keys: function keys(it) {
     return objectKeys(toObject(it));
-  }
-});
-
-var getOwnPropertyDescriptor$2 = objectGetOwnPropertyDescriptor.f;
-
-// `Reflect.deleteProperty` method
-// https://tc39.github.io/ecma262/#sec-reflect.deleteproperty
-_export({ target: 'Reflect', stat: true }, {
-  deleteProperty: function deleteProperty(target, propertyKey) {
-    var descriptor = getOwnPropertyDescriptor$2(anObject(target), propertyKey);
-    return descriptor && !descriptor.configurable ? false : delete target[propertyKey];
   }
 });
 
@@ -3589,15 +3578,15 @@ var descriptors$1 = !fails$1(function () {
 });
 
 var nativePropertyIsEnumerable$2 = {}.propertyIsEnumerable;
-var getOwnPropertyDescriptor$3 = Object.getOwnPropertyDescriptor;
+var getOwnPropertyDescriptor$2 = Object.getOwnPropertyDescriptor;
 
 // Nashorn ~ JDK8 bug
-var NASHORN_BUG$1 = getOwnPropertyDescriptor$3 && !nativePropertyIsEnumerable$2.call({ 1: 2 }, 1);
+var NASHORN_BUG$1 = getOwnPropertyDescriptor$2 && !nativePropertyIsEnumerable$2.call({ 1: 2 }, 1);
 
 // `Object.prototype.propertyIsEnumerable` method implementation
 // https://tc39.github.io/ecma262/#sec-object.prototype.propertyisenumerable
 var f$7 = NASHORN_BUG$1 ? function propertyIsEnumerable(V) {
-  var descriptor = getOwnPropertyDescriptor$3(this, V);
+  var descriptor = getOwnPropertyDescriptor$2(this, V);
   return !!descriptor && descriptor.enumerable;
 } : nativePropertyIsEnumerable$2;
 
@@ -5393,13 +5382,13 @@ _export$1({ target: PROMISE, stat: true, forced: INCORRECT_ITERATION }, {
   }
 });
 
-var getOwnPropertyDescriptor$3$1 = objectGetOwnPropertyDescriptor$1.f;
+var getOwnPropertyDescriptor$3 = objectGetOwnPropertyDescriptor$1.f;
 
 // `Reflect.deleteProperty` method
 // https://tc39.github.io/ecma262/#sec-reflect.deleteproperty
 _export$1({ target: 'Reflect', stat: true }, {
   deleteProperty: function deleteProperty(target, propertyKey) {
-    var descriptor = getOwnPropertyDescriptor$3$1(anObject$1(target), propertyKey);
+    var descriptor = getOwnPropertyDescriptor$3(anObject$1(target), propertyKey);
     return descriptor && !descriptor.configurable ? false : delete target[propertyKey];
   }
 });
@@ -5824,7 +5813,7 @@ var deepEqual = function deepEqual(x, y) {
           if (!deepEqual(x[prop], y[prop])) {
             return false;
           }
-        } else { return false; }
+        }
       }
     }
 
@@ -5839,6 +5828,65 @@ var isType = function isType(type) {
     return {}.toString.call(obj) === "[object ".concat(type, "]");
   };
 }; // 判断是否undefined
+//     let abort;
+//     const pending = Promise.race([
+//         p,
+//         new Promise((resolve, reject) => {
+//             abort = () => reject('abort');
+//         }),
+//     ]).catch((e: any) => {
+//         if (e === 'abort') return new Promise(() => { });
+//         throw e;
+//     });
+//     return { pending, abort };
+// }
+
+function createMaybeAbort() {
+  var loop = function loop() {};
+
+  var isAbort = false;
+
+  var _export;
+
+  _export = {};
+
+  _export.getAbortStatus = function () {
+    return isAbort;
+  };
+
+  _export.abort = function () {
+    isAbort = true;
+  };
+
+  _export.maybeAbort = function (p) {
+    var pending = new Promise(function () {});
+    var promise = pending;
+    var abort = loop;
+
+    if (isAbort) {
+      return {
+        promise: promise,
+        abort: abort
+      };
+    }
+
+    promise = Promise.race([p, new Promise(function (resolve, reject) {
+      abort = function abort() {
+        isAbort = true;
+        reject('abort');
+      };
+    })]).catch(function (e) {
+      if (e === 'abort') { return pending; }
+      throw e;
+    });
+    return {
+      promise: promise,
+      abort: abort
+    };
+  };
+
+  return _export;
+}
 
 function ownKeys$2(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) { symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); } keys.push.apply(keys, symbols); } return keys; }
 
@@ -5850,12 +5898,13 @@ var loop = function loop(params) {
   console.log(params);
 };
 
+var PENDING$1 = new Promise(function () {});
 var cacheDB = null;
 var requestMap = {
   requests: {},
   save: function save(key, cancel) {
     if (this.requests[key]) {
-      this.requests[key]();
+      this.requests[key]('too many similarity request');
     }
 
     this.requests[key] = cancel;
@@ -5863,8 +5912,8 @@ var requestMap = {
   getKey: function getKey(req) {
     return hexMd5("".concat(req.method, "@").concat(req.baseURL).concat(req.url, "@ak=").concat(req.headers ? req.headers.Authorization || '' : ''));
   }
-};
-var responseMap4cache = {}; // 获取存储接口缓存的key
+}; // const responseMap4cache: { [key: string]: any } = {};
+// 获取存储接口缓存的key
 
 var getStoreKey = function getStoreKey(opt) {
   return hexMd5("".concat(opt.method, "@").concat(opt.baseURL).concat(opt.url, "@ak=").concat(opt.headers ? opt.headers.Authorization || '' : '', "@params=").concat(opt.params ? JSON.stringify(opt.params) : '', "@data=").concat(opt.data ? JSON.stringify(opt.data) : ''));
@@ -5889,210 +5938,89 @@ var createAjax = function createAjax(option) {
 
   cacheDB = new default_1('tops-ajax', 'pkg', 'requestmd5');
 
-  var preCheckCode =
-  /*#__PURE__*/
-  function () {
-    var _ref = _asyncToGenerator(
-    /*#__PURE__*/
-    regenerator.mark(function _callee(response, opt) {
-      var reader, data, key, cacheData;
-      return regenerator.wrap(function _callee$(_context) {
-        while (1) {
-          switch (_context.prev = _context.next) {
-            case 0:
-              mergeOption.hideLoading(opt);
+  var preCheckCode = function preCheckCode(response, opt, indicator) {
+    // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
+    // cache和interface为falsely的值时，说明是该组请求第一次执行回调
+    if (indicator && !indicator.cache && !indicator.interface) {
+      mergeOption.hideLoading(opt);
+    } else {
+      // 正常流程
+      mergeOption.hideLoading(opt);
+    }
 
-              if (!(response.request && response.request.responseType === 'blob')) {
-                _context.next = 8;
-                break;
-              }
+    if (response.request && response.request.responseType === 'blob') {
+      if (response.headers['content-disposition']) {
+        return Promise.resolve(response);
+      } // 下载出现异常处理
 
-              if (!response.headers['content-disposition']) {
-                _context.next = 4;
-                break;
-              }
 
-              return _context.abrupt("return", Promise.resolve(response));
+      var reader = new FileReader();
+      reader.readAsText(response.data, 'utf8');
 
-            case 4:
-              // 下载出现异常处理
-              reader = new FileReader();
-              reader.readAsText(response.data, 'utf8');
-
-              reader.onload = function () {
-                if (this.result && typeof this.result === 'string' && !opt.isHandleError) {
-                  if (this.result) { return mergeOption.errorMsgHandler(JSON.parse(this.result).Message); }
-                } else {
-                  return Promise.reject(response.data || {});
-                }
-              };
-
-              return _context.abrupt("return", false);
-
-            case 8:
-              if (response) {
-                _context.next = 10;
-                break;
-              }
-
-              return _context.abrupt("return");
-
-            case 10:
-              data = response.data;
-
-              if (data) {
-                _context.next = 16;
-                break;
-              }
-
-              if (!opt.isHandleError) {
-                _context.next = 14;
-                break;
-              }
-
-              return _context.abrupt("return", Promise.reject(response || {}));
-
-            case 14:
-              mergeOption.errorMsgHandler("\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\uFF01[".concat(response.status, "]"));
-              return _context.abrupt("return", Promise.resolve(null));
-
-            case 16:
-              key = getStoreKey(opt);
-
-              if (!(data.Code === 0)) {
-                _context.next = 41;
-                break;
-              }
-
-              if (!(opt.cache === false)) {
-                _context.next = 39;
-                break;
-              }
-
-              if (!responseMap4cache[key]) {
-                _context.next = 37;
-                break;
-              }
-
-              _context.prev = 20;
-              _context.t0 = responseMap4cache[key].cacheData;
-
-              if (_context.t0) {
-                _context.next = 26;
-                break;
-              }
-
-              _context.next = 25;
-              return cacheDB.getData4DB(key);
-
-            case 25:
-              _context.t0 = _context.sent;
-
-            case 26:
-              cacheData = _context.t0;
-
-              if (!(cacheData && deepEqual(data, cacheData))) {
-                _context.next = 29;
-                break;
-              }
-
-              return _context.abrupt("return", new Promise(function () {}));
-
-            case 29:
-              _context.next = 34;
-              break;
-
-            case 31:
-              _context.prev = 31;
-              _context.t1 = _context["catch"](20);
-              console.log(_context.t1);
-
-            case 34:
-              Reflect.deleteProperty(responseMap4cache, key);
-              _context.next = 38;
-              break;
-
-            case 37:
-              responseMap4cache[key] = {
-                loaded: true
-              };
-
-            case 38:
-              data.Data && cacheDB.addData4DB(key, data);
-
-            case 39:
-              if (data.Data && isType('Object')(data.Data)) { data.Data.cache = opt.cache; }
-              return _context.abrupt("return", Promise.resolve(data.Data));
-
-            case 41:
-              if (!opt.isHandleError) {
-                _context.next = 43;
-                break;
-              }
-
-              return _context.abrupt("return", Promise.reject(response.data || {}));
-
-            case 43:
-              if (!(data.Code === 302)) {
-                _context.next = 46;
-                break;
-              }
-
-              window.location.href = data.message + window.location.hash;
-              return _context.abrupt("return", Promise.resolve(null));
-
-            case 46:
-              if (!(data.Code === 4002 || data.Code === 4000)) {
-                _context.next = 49;
-                break;
-              }
-
-              if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
-              return _context.abrupt("return", Promise.resolve(null));
-
-            case 49:
-              if (!(response.data && response.data.Message)) {
-                _context.next = 55;
-                break;
-              }
-
-              mergeOption.hideLoading(opt);
-
-              if (!opt.isHandleError) {
-                _context.next = 53;
-                break;
-              }
-
-              return _context.abrupt("return", Promise.reject(response.data));
-
-            case 53:
-              mergeOption.errorMsgHandler(response.data.Message);
-              return _context.abrupt("return", Promise.resolve(null));
-
-            case 55:
-              return _context.abrupt("return", Promise.reject(opt.isHandleError ? response.data : {}));
-
-            case 56:
-            case "end":
-              return _context.stop();
-          }
+      reader.onload = function () {
+        if (this.result && typeof this.result === 'string' && !opt.isHandleError) {
+          if (this.result) { return mergeOption.errorMsgHandler(JSON.parse(this.result).Message); }
+        } else {
+          return Promise.reject(response.data || {});
         }
-      }, _callee, null, [[20, 31]]);
-    }));
+      };
 
-    return function preCheckCode(_x, _x2) {
-      return _ref.apply(this, arguments);
-    };
-  }();
+      return false;
+    } // 通用请求判断
+
+
+    if (!response) { return; }
+    var data = response.data;
+
+    if (!data) {
+      if (opt.isHandleError) {
+        return Promise.reject(response || {});
+      }
+
+      mergeOption.errorMsgHandler("\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\uFF01[".concat(response.status, "]"));
+      return Promise.resolve(null);
+    }
+
+    if (data.Code === 0) {
+      if (data.Data && isType('Object')(data.Data)) { data.Data.cache = opt.cache; }
+      return Promise.resolve(data.Data);
+    }
+
+    if (opt.isHandleError) {
+      return Promise.reject(response.data || {});
+    }
+
+    if (data.Code === 302) {
+      window.location.href = data.message + window.location.hash;
+      return Promise.resolve(null);
+    }
+
+    if (data.Code === 4002 || data.Code === 4000) {
+      if (mergeOption.loginCallback && mergeOption.loginCallback instanceof Function) { mergeOption.loginCallback(data); }
+      return Promise.resolve(null);
+    }
+
+    if (response.data && response.data.Message) {
+      mergeOption.hideLoading(opt);
+
+      if (opt.isHandleError) {
+        return Promise.reject(response.data);
+      }
+
+      mergeOption.errorMsgHandler(response.data.Message);
+      return Promise.resolve(null);
+    }
+
+    return Promise.reject(opt.isHandleError ? response.data : {});
+  };
 
   var preReject = function preReject(err, opt) {
-    mergeOption.hideLoading(opt);
-    var key = getStoreKey(opt);
-    Reflect.deleteProperty(responseMap4cache, key); // 请求丢失时触发
+    mergeOption.hideLoading(opt); // 请求丢失时触发
 
     var emptyError = {
       data: null
     };
+    if (err instanceof axios.Cancel) { return Promise.resolve(null); }
     var response = err.response || emptyError;
 
     if (err.message === 'Network Error') {
@@ -6124,131 +6052,328 @@ var createAjax = function createAjax(option) {
 
 
     return Promise.reject(opt.isHandleError ? response.data || {} : {});
-  };
+  }; // cache参数为true时，第一次调用common之后，common会指向cache_flow_common
+  // cache_flow_common用于处理真实的ajax请求
 
-  var common = function common(opt) {
-    var defaultAjaxOption = {
-      url: '',
-      method: 'GET',
-      loading: false,
-      isHandleError: false,
-      similarityCancel: true
-    };
-    opt = Object.assign(defaultAjaxOption, opt);
-    var cancel;
-    var cancelToken = new axios.CancelToken(function (c) {
-      cancel = c;
-    });
-    if (!window || !window.indexedDB) { opt.cache = void 0; }
 
-    if (opt.loading) {
-      mergeOption.showLoading(opt);
-    }
-
-    var req = _objectSpread({}, mergeOption.requestConfig, {
-      method: 'GET',
-      url: '',
-      data: null,
-      params: null,
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8'
-      },
-      responseType: 'json',
-      withCredentials: true,
-      cancelToken: cancelToken
-    });
-
-    var objectSource = opt;
-
-    for (var key in objectSource) {
-      if (objectSource.hasOwnProperty(key)) {
-        if (isType('Undefined')(objectSource[key])) { delete objectSource[key]; }
-      }
-    }
-
-    var mergeReq = assignDeep(req, opt);
-    console.log(mergeReq);
-
-    if (mergeReq.similarityCancel) {
-      requestMap.save(requestMap.getKey(mergeReq), cancel);
-    }
-
-    return mergeOption.beforeRequestHandler(mergeReq).then(
-    /*#__PURE__*/
-    function () {
-      var _ref2 = _asyncToGenerator(
+  var cache_flow_common = function cache_flow_common(indicator, beforeHandle) {
+    return (
       /*#__PURE__*/
-      regenerator.mark(function _callee2(res) {
-        var cacheData, _key;
-
+      _asyncToGenerator(
+      /*#__PURE__*/
+      regenerator.mark(function _callee2() {
+        var req;
         return regenerator.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                if (!(opt.cache === true)) {
-                  _context2.next = 17;
-                  break;
-                }
+                common = normal_flow_common; // common重新指向正常流程的请求函数
 
-                _key = getStoreKey(opt);
-                _context2.prev = 2;
-                _context2.next = 5;
-                return cacheDB.getData4DB(_key);
+                _context2.next = 3;
+                return beforeHandle;
 
-              case 5:
-                cacheData = _context2.sent;
-                _context2.next = 11;
-                break;
+              case 3:
+                req = _context2.sent;
+                return _context2.abrupt("return", axios(req).then(
+                /*#__PURE__*/
+                function () {
+                  var _ref2 = _asyncToGenerator(
+                  /*#__PURE__*/
+                  regenerator.mark(function _callee(response) {
+                    var key, cacheData;
+                    return regenerator.wrap(function _callee$(_context) {
+                      while (1) {
+                        switch (_context.prev = _context.next) {
+                          case 0:
+                            indicator.interface = true;
+                            console.log('use ajax'); // 在preCheckCode中判断执行阶段较繁琐
+                            // 将缓存的比较和读写从preCheckCode抽离
 
-              case 8:
-                _context2.prev = 8;
-                _context2.t0 = _context2["catch"](2);
-                console.log(_context2.t0);
+                            if (!(response.data.Code === 0)) {
+                              _context.next = 16;
+                              break;
+                            }
 
-              case 11:
-                if (!(!cacheData || responseMap4cache[_key])) {
-                  _context2.next = 14;
-                  break;
-                }
+                            key = getStoreKey(req);
+                            _context.t0 = indicator.cache;
 
-                Reflect.deleteProperty(responseMap4cache, _key);
-                return _context2.abrupt("return", new Promise(function () {}));
+                            if (_context.t0) {
+                              _context.next = 9;
+                              break;
+                            }
 
-              case 14:
-                responseMap4cache[_key] = {
-                  loaded: true,
-                  cacheData: cacheData
-                };
-                setTimeout(function () {
-                  // 清除获取缓存记录，以防下次调用时判断错误
-                  Reflect.deleteProperty(responseMap4cache, _key);
-                }, 5000);
-                return _context2.abrupt("return", Promise.resolve({
-                  data: cacheData
+                            _context.next = 8;
+                            return cacheDB.getData4DB(key);
+
+                          case 8:
+                            _context.t0 = _context.sent;
+
+                          case 9:
+                            cacheData = _context.t0;
+
+                            if (!(cacheData && deepEqual(response.data, cacheData))) {
+                              _context.next = 15;
+                              break;
+                            }
+
+                            if (!indicator.cache) {
+                              _context.next = 13;
+                              break;
+                            }
+
+                            return _context.abrupt("return", PENDING$1);
+
+                          case 13:
+                            _context.next = 16;
+                            break;
+
+                          case 15:
+                            // 内容不一致，重写缓存
+                            response.data.Data && cacheDB.addData4DB(key, response.data);
+
+                          case 16:
+                            return _context.abrupt("return", preCheckCode(response, req, indicator));
+
+                          case 17:
+                          case "end":
+                            return _context.stop();
+                        }
+                      }
+                    }, _callee);
+                  }));
+
+                  return function (_x) {
+                    return _ref2.apply(this, arguments);
+                  };
+                }(), function (err) {
+                  return preReject(err, req);
                 }));
 
-              case 17:
-                return _context2.abrupt("return", axios(res));
-
-              case 18:
+              case 5:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, null, [[2, 8]]);
-      }));
+        }, _callee2);
+      }))
+    );
+  }; // 在cache为true时请求indexdb，否则直接请求接口
 
-      return function (_x3) {
-        return _ref2.apply(this, arguments);
-      };
-    }(), function (error) {
-      return error;
-    }).then(function (response) {
-      return preCheckCode(response, mergeReq);
-    }, function (err) {
-      return preReject(err, mergeReq);
-    });
-  };
+
+  var normal_flow_common =
+  /*#__PURE__*/
+  function () {
+    var _ref3 = _asyncToGenerator(
+    /*#__PURE__*/
+    regenerator.mark(function _callee5() {
+      var opt,
+          defaultAjaxOption,
+          indicator,
+          cancel,
+          cancelCache,
+          cancelToken,
+          req,
+          key,
+          beforeHandle,
+          fn,
+          _createMaybeAbort,
+          maybeAbort,
+          abort,
+          response,
+          _args5 = arguments;
+
+      return regenerator.wrap(function _callee5$(_context5) {
+        while (1) {
+          switch (_context5.prev = _context5.next) {
+            case 0:
+              opt = _args5.length > 0 && _args5[0] !== undefined ? _args5[0] : {
+                url: '',
+                method: 'GET',
+                loading: false,
+                isHandleError: false
+              };
+              if (!window || !window.indexedDB) { opt.cache = void 0; }
+              defaultAjaxOption = {
+                url: '',
+                method: 'GET',
+                loading: false,
+                isHandleError: false,
+                similarityCancel: true
+              };
+              opt = Object.assign(defaultAjaxOption, opt);
+              cancelToken = new axios.CancelToken(function (c) {
+                cancel = c;
+              });
+              req = _objectSpread({}, mergeOption.requestConfig, {
+                method: 'GET',
+                url: '',
+                data: null,
+                params: null,
+                headers: {
+                  'Content-Type': 'application/json; charset=UTF-8'
+                },
+                responseType: 'json',
+                withCredentials: true,
+                cancelToken: cancelToken
+              });
+
+              for (key in opt) {
+                if (opt.hasOwnProperty(key)) {
+                  if (isType('Undefined')(opt[key])) { delete opt[key]; }
+                }
+              }
+
+              req = assignDeep(req, opt);
+
+              if (opt.loading) {
+                mergeOption.showLoading(req);
+              }
+
+              if (req.similarityCancel) {
+                requestMap.save(requestMap.getKey(req), function () {
+                  cancel();
+                  cancelCache && cancelCache();
+                });
+              }
+
+              beforeHandle = mergeOption.beforeRequestHandler(req);
+
+              if (!(opt.cache === true)) {
+                _context5.next = 19;
+                break;
+              }
+
+              indicator = {
+                cache: false,
+                interface: false
+              };
+              common = cache_flow_common(indicator, beforeHandle); // normal_flow_common在走cache流程时必须能同步执行到这一步（关键）
+
+              _createMaybeAbort = createMaybeAbort(), maybeAbort = _createMaybeAbort.maybeAbort, abort = _createMaybeAbort.abort;
+              cancelCache = abort;
+
+              fn = function fn() {
+                var _maybeAbort = maybeAbort(_asyncToGenerator(
+                /*#__PURE__*/
+                regenerator.mark(function _callee3() {
+                  var cacheData, key;
+                  return regenerator.wrap(function _callee3$(_context3) {
+                    while (1) {
+                      switch (_context3.prev = _context3.next) {
+                        case 0:
+                          key = getStoreKey(opt);
+                          _context3.prev = 1;
+                          _context3.next = 4;
+                          return cacheDB.getData4DB(key);
+
+                        case 4:
+                          cacheData = _context3.sent;
+                          _context3.next = 10;
+                          break;
+
+                        case 7:
+                          _context3.prev = 7;
+                          _context3.t0 = _context3["catch"](1);
+                          console.log(_context3.t0);
+
+                        case 10:
+                          if (!(!cacheData || indicator.interface)) {
+                            _context3.next = 12;
+                            break;
+                          }
+
+                          return _context3.abrupt("return", PENDING$1);
+
+                        case 12:
+                          console.log('use cache');
+                          indicator.cache = cacheData;
+                          return _context3.abrupt("return", {
+                            data: cacheData
+                          });
+
+                        case 15:
+                        case "end":
+                          return _context3.stop();
+                      }
+                    }
+                  }, _callee3, null, [[1, 7]]);
+                }))()),
+                    promise = _maybeAbort.promise,
+                    _abort = _maybeAbort.abort;
+
+                cancelCache = _abort;
+                return promise.then(
+                /*#__PURE__*/
+                function () {
+                  var _ref5 = _asyncToGenerator(
+                  /*#__PURE__*/
+                  regenerator.mark(function _callee4(response) {
+                    return regenerator.wrap(function _callee4$(_context4) {
+                      while (1) {
+                        switch (_context4.prev = _context4.next) {
+                          case 0:
+                            _context4.next = 2;
+                            return beforeHandle;
+
+                          case 2:
+                            req = _context4.sent;
+                            return _context4.abrupt("return", response);
+
+                          case 4:
+                          case "end":
+                            return _context4.stop();
+                        }
+                      }
+                    }, _callee4);
+                  }));
+
+                  return function (_x2) {
+                    return _ref5.apply(this, arguments);
+                  };
+                }());
+              };
+
+              _context5.next = 23;
+              break;
+
+            case 19:
+              _context5.next = 21;
+              return beforeHandle;
+
+            case 21:
+              req = _context5.sent;
+              fn = axios;
+
+            case 23:
+              _context5.prev = 23;
+              _context5.next = 26;
+              return fn(req);
+
+            case 26:
+              response = _context5.sent;
+              return _context5.abrupt("return", preCheckCode(response, req, indicator));
+
+            case 30:
+              _context5.prev = 30;
+              _context5.t0 = _context5["catch"](23);
+              return _context5.abrupt("return", preReject(_context5.t0, req));
+
+            case 33:
+            case "end":
+              return _context5.stop();
+          }
+        }
+      }, _callee5, null, [[23, 30]]);
+    }));
+
+    return function normal_flow_common() {
+      return _ref3.apply(this, arguments);
+    };
+  }();
+
+  var common;
+  common = normal_flow_common;
+  /* ------------------------------------------------------------------------------------------------------------------------------ */
 
   var getJSON = function getJSON(opt) {
     opt.method = 'GET';

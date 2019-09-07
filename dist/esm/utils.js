@@ -1,4 +1,7 @@
+import "core-js/modules/es.array.iterator";
 import "core-js/modules/es.object.keys";
+import "core-js/modules/es.string.iterator";
+import "core-js/modules/web.dom-collections.iterator";
 import _typeof from "@babel/runtime/helpers/esm/typeof";
 
 /**
@@ -49,7 +52,7 @@ export var deepEqual = function deepEqual(x, y) {
           if (!deepEqual(x[prop], y[prop])) {
             return false;
           }
-        } else return false;
+        }
       }
     }
 
@@ -65,4 +68,63 @@ export var isType = function isType(type) {
   };
 }; // 判断是否undefined
 
-export var isUndef = isType('Undefined');
+export var isUndef = isType('Undefined'); // export function maybeAbort(p: Promise<any>) {
+//     let abort;
+//     const pending = Promise.race([
+//         p,
+//         new Promise((resolve, reject) => {
+//             abort = () => reject('abort');
+//         }),
+//     ]).catch((e: any) => {
+//         if (e === 'abort') return new Promise(() => { });
+//         throw e;
+//     });
+//     return { pending, abort };
+// }
+
+export function createMaybeAbort() {
+  var loop = function loop() {};
+
+  var isAbort = false;
+
+  var _export;
+
+  _export = {};
+
+  _export.getAbortStatus = function () {
+    return isAbort;
+  };
+
+  _export.abort = function () {
+    isAbort = true;
+  };
+
+  _export.maybeAbort = function (p) {
+    var pending = new Promise(function () {});
+    var promise = pending;
+    var abort = loop;
+
+    if (isAbort) {
+      return {
+        promise: promise,
+        abort: abort
+      };
+    }
+
+    promise = Promise.race([p, new Promise(function (resolve, reject) {
+      abort = function abort() {
+        isAbort = true;
+        reject('abort');
+      };
+    })]).catch(function (e) {
+      if (e === 'abort') return pending;
+      throw e;
+    });
+    return {
+      promise: promise,
+      abort: abort
+    };
+  };
+
+  return _export;
+}

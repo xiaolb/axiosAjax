@@ -1,4 +1,4 @@
-import { AxiosRequestConfig, Method } from 'axios';
+import { AxiosRequestConfig } from 'axios';
 
 export interface createAjaxOption {
     showLoading?: Function; // 显示loading方法
