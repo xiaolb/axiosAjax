@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.13
+ * util/ajax v0.0.14
  * (c) 2019 xiekaifeng4042
  */
 (function (global, factory) {
@@ -6407,11 +6407,29 @@
 
 	  var putJSON = function putJSON(opt) {
 	    opt.method = 'PUT';
+
+	    if (opt.params && Object.keys(opt.params).length) {
+	      opt.paramsSerializer = function (params) {
+	        return lib.stringify(params, {
+	          indices: false
+	        });
+	      };
+	    }
+
 	    return common(opt);
 	  };
 
 	  var deleteJSON = function deleteJSON(opt) {
 	    opt.method = 'DELETE';
+
+	    if (opt.params && Object.keys(opt.params).length) {
+	      opt.paramsSerializer = function (params) {
+	        return lib.stringify(params, {
+	          indices: false
+	        });
+	      };
+	    }
+
 	    return common(opt);
 	  }; // 登录时需使用formdata格式传输数据
 

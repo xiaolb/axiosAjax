@@ -308,11 +308,17 @@ const createAjax = (option: createAjaxOption) => {
     };
     const putJSON = (opt: ajaxOption) => {
         opt.method = 'PUT';
+        if (opt.params && Object.keys(opt.params).length) {
+            opt.paramsSerializer = (params: any) => qs.stringify(params, { indices: false });
+        }
         return common(opt);
     };
 
     const deleteJSON = (opt: ajaxOption) => {
         opt.method = 'DELETE';
+        if (opt.params && Object.keys(opt.params).length) {
+            opt.paramsSerializer = (params: any) => qs.stringify(params, { indices: false });
+        }
         return common(opt);
     };
     // 登录时需使用formdata格式传输数据

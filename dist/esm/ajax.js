@@ -532,11 +532,29 @@ var createAjax = function createAjax(option) {
 
   var putJSON = function putJSON(opt) {
     opt.method = 'PUT';
+
+    if (opt.params && Object.keys(opt.params).length) {
+      opt.paramsSerializer = function (params) {
+        return qs.stringify(params, {
+          indices: false
+        });
+      };
+    }
+
     return common(opt);
   };
 
   var deleteJSON = function deleteJSON(opt) {
     opt.method = 'DELETE';
+
+    if (opt.params && Object.keys(opt.params).length) {
+      opt.paramsSerializer = function (params) {
+        return qs.stringify(params, {
+          indices: false
+        });
+      };
+    }
+
     return common(opt);
   }; // 登录时需使用formdata格式传输数据
 
