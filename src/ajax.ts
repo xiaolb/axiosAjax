@@ -190,7 +190,7 @@ const createAjax = (option: createAjaxOption) => {
             method: 'GET',
             loading: false,
             isHandleError: false,
-            similarityCancel: true,
+            concurrent: true,
         };
         opt = Object.assign(defaultAjaxOption, opt);
         let indicator: INDICATOR;
@@ -226,7 +226,7 @@ const createAjax = (option: createAjaxOption) => {
             mergeOption.showLoading(req);
         }
 
-        if (req.similarityCancel) {
+        if (req.concurrent === false) {
             requestMap.save(requestMap.getKey(req), () => {
                 cancel();
                 cancelCache && cancelCache();

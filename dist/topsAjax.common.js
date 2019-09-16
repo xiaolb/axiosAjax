@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.14
+ * util/ajax v0.0.15
  * (c) 2019 xiekaifeng4042
  */
 'use strict';
@@ -6198,7 +6198,7 @@ var createAjax = function createAjax(option) {
                 method: 'GET',
                 loading: false,
                 isHandleError: false,
-                similarityCancel: true
+                concurrent: true
               };
               opt = Object.assign(defaultAjaxOption, opt);
               cancelToken = new axios.CancelToken(function (c) {
@@ -6229,7 +6229,7 @@ var createAjax = function createAjax(option) {
                 mergeOption.showLoading(req);
               }
 
-              if (req.similarityCancel) {
+              if (req.concurrent === false) {
                 requestMap.save(requestMap.getKey(req), function () {
                   cancel();
                   cancelCache && cancelCache();
