@@ -1,6 +1,6 @@
 {
     "name": "@util/ajax",
-    "version": "0.0.15",
+    "version": "0.0.16",
     "description": "ajax封装 底层基于axios",
     "main": "dist/topsAjax.common.js",
     "module": "dist/esm/index.esm.js",
