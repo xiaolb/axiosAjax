@@ -12,7 +12,7 @@ const loop = function(params: any) {
 const PENDING = new Promise(() => {});
 
 let cacheDB: TopsIndexDB = null;
-
+const loadingMap = new Map();
 const requestMap = {
     requests: {},
     save(key: string, cancel: Canceler) {
@@ -25,6 +25,7 @@ const requestMap = {
         return hexMd5(`${req.method}@${req.baseURL}${req.url}@ak=${req.headers ? req.headers.Authorization || '' : ''}`);
     },
 };
+
 // const responseMap4cache: { [key: string]: any } = {};
 
 // 获取存储接口缓存的key
@@ -53,16 +54,32 @@ const createAjax = (option: createAjaxOption) => {
         ...defaultOption,
         ...option,
     };
+    let isLoading = false;
+    const showLoading = (req: any) => {
+        loadingMap.set(req, true);
+        if (!isLoading) {
+            isLoading = true;
+            mergeOption.showLoading(req);
+        }
+    };
+    const hideLoading = (req: any) => {
+        loadingMap.delete(req);
+        if (!loadingMap.size) {
+            isLoading = false;
+            mergeOption.hideLoading(req);
+        }
+    };
     cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
     const preCheckCode = function(response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
         // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
         // cache和interface为falsely的值时，说明是该组请求第一次执行回调
         if (indicator && !indicator.cache && !indicator.interface) {
-            mergeOption.hideLoading(opt);
+            hideLoading(opt);
         } else {
             // 正常流程
-            mergeOption.hideLoading(opt);
+            hideLoading(opt);
         }
+
         if (response.request && response.request.responseType === 'blob') {
             if (response.headers['content-disposition']) {
                 return Promise.resolve(response);
@@ -106,7 +123,6 @@ const createAjax = (option: createAjaxOption) => {
             return Promise.resolve(null);
         }
         if (response.data && response.data.Message) {
-            mergeOption.hideLoading(opt);
             if (opt.isHandleError) {
                 return Promise.reject(response.data);
             }
@@ -116,7 +132,7 @@ const createAjax = (option: createAjaxOption) => {
         return Promise.reject(opt.isHandleError ? response.data : {});
     };
     const preReject = (err: AxiosError, opt: AxiosRequestConfigMergeWithAjaxOption) => {
-        mergeOption.hideLoading(opt);
+        hideLoading(opt);
         // 请求丢失时触发
         const emptyError: emptyErrorProps = {
             data: null,
@@ -129,19 +145,18 @@ const createAjax = (option: createAjaxOption) => {
             response.data.Message = '网络错误，请稍后再试！';
         }
         if (opt.isHandleError) {
-            mergeOption.hideLoading(opt);
             return Promise.reject(response.data || {});
         }
         if (response.data && response.data.Message) {
             setTimeout(() => {
-                mergeOption.hideLoading(opt);
+                hideLoading(opt);
                 mergeOption.errorMsgHandler(response.data.Message);
             }, 0);
             return Promise.resolve(null);
         }
         if (err.message) {
             setTimeout(() => {
-                mergeOption.hideLoading(opt);
+                hideLoading(opt);
                 mergeOption.errorMsgHandler(err.message);
             }, 0);
             return Promise.resolve(null);
@@ -223,7 +238,7 @@ const createAjax = (option: createAjaxOption) => {
         req = assignDeep(req, opt);
 
         if (opt.loading) {
-            mergeOption.showLoading(req);
+            showLoading(req);
         }
 
         if (req.concurrent === false) {

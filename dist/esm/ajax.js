@@ -1,5 +1,6 @@
 import "core-js/modules/es.symbol";
 import "core-js/modules/es.array.iterator";
+import "core-js/modules/es.map";
 import "core-js/modules/es.object.get-own-property-descriptor";
 import "core-js/modules/es.object.get-own-property-descriptors";
 import "core-js/modules/es.object.keys";
@@ -27,6 +28,7 @@ var loop = function loop(params) {
 
 var PENDING = new Promise(function () {});
 var cacheDB = null;
+var loadingMap = new Map();
 var requestMap = {
   requests: {},
   save: function save(key, cancel) {
@@ -63,16 +65,36 @@ var createAjax = function createAjax(option) {
 
   var mergeOption = _objectSpread({}, defaultOption, {}, option);
 
+  var isLoading = false;
+
+  var showLoading = function showLoading(req) {
+    loadingMap.set(req, true);
+
+    if (!isLoading) {
+      isLoading = true;
+      mergeOption.showLoading(req);
+    }
+  };
+
+  var hideLoading = function hideLoading(req) {
+    loadingMap.delete(req);
+
+    if (!loadingMap.size) {
+      isLoading = false;
+      mergeOption.hideLoading(req);
+    }
+  };
+
   cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
 
   var preCheckCode = function preCheckCode(response, opt, indicator) {
     // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
     // cache和interface为falsely的值时，说明是该组请求第一次执行回调
     if (indicator && !indicator.cache && !indicator.interface) {
-      mergeOption.hideLoading(opt);
+      hideLoading(opt);
     } else {
       // 正常流程
-      mergeOption.hideLoading(opt);
+      hideLoading(opt);
     }
 
     if (response.request && response.request.responseType === 'blob') {
@@ -128,8 +150,6 @@ var createAjax = function createAjax(option) {
     }
 
     if (response.data && response.data.Message) {
-      mergeOption.hideLoading(opt);
-
       if (opt.isHandleError) {
         return Promise.reject(response.data);
       }
@@ -142,7 +162,7 @@ var createAjax = function createAjax(option) {
   };
 
   var preReject = function preReject(err, opt) {
-    mergeOption.hideLoading(opt); // 请求丢失时触发
+    hideLoading(opt); // 请求丢失时触发
 
     var emptyError = {
       data: null
@@ -157,13 +177,12 @@ var createAjax = function createAjax(option) {
     }
 
     if (opt.isHandleError) {
-      mergeOption.hideLoading(opt);
       return Promise.reject(response.data || {});
     }
 
     if (response.data && response.data.Message) {
       setTimeout(function () {
-        mergeOption.hideLoading(opt);
+        hideLoading(opt);
         mergeOption.errorMsgHandler(response.data.Message);
       }, 0);
       return Promise.resolve(null);
@@ -171,7 +190,7 @@ var createAjax = function createAjax(option) {
 
     if (err.message) {
       setTimeout(function () {
-        mergeOption.hideLoading(opt);
+        hideLoading(opt);
         mergeOption.errorMsgHandler(err.message);
       }, 0);
       return Promise.resolve(null);
@@ -353,7 +372,7 @@ var createAjax = function createAjax(option) {
               req = assignDeep(req, opt);
 
               if (opt.loading) {
-                mergeOption.showLoading(req);
+                showLoading(req);
               }
 
               if (req.concurrent === false) {

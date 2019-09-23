@@ -1,5 +1,5 @@
 /**
- * util/ajax v0.0.15
+ * util/ajax v0.0.16
  * (c) 2019 xiekaifeng4042
  */
 (function (global, factory) {
@@ -1054,6 +1054,8 @@
 	  ArrayPrototype[UNSCOPABLES][key] = true;
 	};
 
+	var iterators = {};
+
 	var correctPrototypeGetter = !fails(function () {
 	  function F() { /* empty */ }
 	  F.prototype.constructor = null;
@@ -1104,10 +1106,17 @@
 
 	var IteratorPrototype$1 = iteratorsCore.IteratorPrototype;
 
+
+
+
+
+	var returnThis$1 = function () { return this; };
+
 	var createIteratorConstructor = function (IteratorConstructor, NAME, next) {
 	  var TO_STRING_TAG = NAME + ' Iterator';
 	  IteratorConstructor.prototype = objectCreate(IteratorPrototype$1, { next: createPropertyDescriptor(1, next) });
 	  setToStringTag(IteratorConstructor, TO_STRING_TAG, false);
+	  iterators[TO_STRING_TAG] = returnThis$1;
 	  return IteratorConstructor;
 	};
 
@@ -1146,7 +1155,7 @@
 	var VALUES = 'values';
 	var ENTRIES = 'entries';
 
-	var returnThis$1 = function () { return this; };
+	var returnThis$2 = function () { return this; };
 
 	var defineIterator = function (Iterable, NAME, IteratorConstructor, next, DEFAULT, IS_SET, FORCED) {
 	  createIteratorConstructor(IteratorConstructor, NAME, next);
@@ -1179,7 +1188,7 @@
 	        if (objectSetPrototypeOf) {
 	          objectSetPrototypeOf(CurrentIteratorPrototype, IteratorPrototype$2);
 	        } else if (typeof CurrentIteratorPrototype[ITERATOR$1] != 'function') {
-	          hide(CurrentIteratorPrototype, ITERATOR$1, returnThis$1);
+	          hide(CurrentIteratorPrototype, ITERATOR$1, returnThis$2);
 	        }
 	      }
 	      // Set @@toStringTag to native iterators
@@ -1197,6 +1206,7 @@
 	  if ( IterablePrototype[ITERATOR$1] !== defaultIterator) {
 	    hide(IterablePrototype, ITERATOR$1, defaultIterator);
 	  }
+	  iterators[NAME] = defaultIterator;
 
 	  // export additional methods
 	  if (DEFAULT) {
@@ -1252,10 +1262,526 @@
 	  return { value: [index, target[index]], done: false };
 	}, 'values');
 
+	// argumentsList[@@iterator] is %ArrayProto_values%
+	// https://tc39.github.io/ecma262/#sec-createunmappedargumentsobject
+	// https://tc39.github.io/ecma262/#sec-createmappedargumentsobject
+	iterators.Arguments = iterators.Array;
+
 	// https://tc39.github.io/ecma262/#sec-array.prototype-@@unscopables
 	addToUnscopables('keys');
 	addToUnscopables('values');
 	addToUnscopables('entries');
+
+	var freezing = !fails(function () {
+	  return Object.isExtensible(Object.preventExtensions({}));
+	});
+
+	var internalMetadata = createCommonjsModule(function (module) {
+	var defineProperty = objectDefineProperty.f;
+
+
+
+	var METADATA = uid('meta');
+	var id = 0;
+
+	var isExtensible = Object.isExtensible || function () {
+	  return true;
+	};
+
+	var setMetadata = function (it) {
+	  defineProperty(it, METADATA, { value: {
+	    objectID: 'O' + ++id, // object ID
+	    weakData: {}          // weak collections IDs
+	  } });
+	};
+
+	var fastKey = function (it, create) {
+	  // return a primitive with prefix
+	  if (!isObject(it)) { return typeof it == 'symbol' ? it : (typeof it == 'string' ? 'S' : 'P') + it; }
+	  if (!has(it, METADATA)) {
+	    // can't set metadata to uncaught frozen object
+	    if (!isExtensible(it)) { return 'F'; }
+	    // not necessary to add metadata
+	    if (!create) { return 'E'; }
+	    // add missing metadata
+	    setMetadata(it);
+	  // return object ID
+	  } return it[METADATA].objectID;
+	};
+
+	var getWeakData = function (it, create) {
+	  if (!has(it, METADATA)) {
+	    // can't set metadata to uncaught frozen object
+	    if (!isExtensible(it)) { return true; }
+	    // not necessary to add metadata
+	    if (!create) { return false; }
+	    // add missing metadata
+	    setMetadata(it);
+	  // return the store of weak collections IDs
+	  } return it[METADATA].weakData;
+	};
+
+	// add metadata on freeze-family methods calling
+	var onFreeze = function (it) {
+	  if (freezing && meta.REQUIRED && isExtensible(it) && !has(it, METADATA)) { setMetadata(it); }
+	  return it;
+	};
+
+	var meta = module.exports = {
+	  REQUIRED: false,
+	  fastKey: fastKey,
+	  getWeakData: getWeakData,
+	  onFreeze: onFreeze
+	};
+
+	hiddenKeys[METADATA] = true;
+	});
+	var internalMetadata_1 = internalMetadata.REQUIRED;
+	var internalMetadata_2 = internalMetadata.fastKey;
+	var internalMetadata_3 = internalMetadata.getWeakData;
+	var internalMetadata_4 = internalMetadata.onFreeze;
+
+	var ITERATOR$2 = wellKnownSymbol('iterator');
+	var ArrayPrototype$1 = Array.prototype;
+
+	// check on default Array iterator
+	var isArrayIteratorMethod = function (it) {
+	  return it !== undefined && (iterators.Array === it || ArrayPrototype$1[ITERATOR$2] === it);
+	};
+
+	var TO_STRING_TAG$1 = wellKnownSymbol('toStringTag');
+	// ES3 wrong here
+	var CORRECT_ARGUMENTS = classofRaw(function () { return arguments; }()) == 'Arguments';
+
+	// fallback for IE11 Script Access Denied error
+	var tryGet = function (it, key) {
+	  try {
+	    return it[key];
+	  } catch (error) { /* empty */ }
+	};
+
+	// getting tag from ES6+ `Object.prototype.toString`
+	var classof = function (it) {
+	  var O, tag, result;
+	  return it === undefined ? 'Undefined' : it === null ? 'Null'
+	    // @@toStringTag case
+	    : typeof (tag = tryGet(O = Object(it), TO_STRING_TAG$1)) == 'string' ? tag
+	    // builtinTag case
+	    : CORRECT_ARGUMENTS ? classofRaw(O)
+	    // ES3 arguments fallback
+	    : (result = classofRaw(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : result;
+	};
+
+	var ITERATOR$3 = wellKnownSymbol('iterator');
+
+	var getIteratorMethod = function (it) {
+	  if (it != undefined) { return it[ITERATOR$3]
+	    || it['@@iterator']
+	    || iterators[classof(it)]; }
+	};
+
+	// call something on iterator step with safe closing on error
+	var callWithSafeIterationClosing = function (iterator, fn, value, ENTRIES) {
+	  try {
+	    return ENTRIES ? fn(anObject(value)[0], value[1]) : fn(value);
+	  // 7.4.6 IteratorClose(iterator, completion)
+	  } catch (error) {
+	    var returnMethod = iterator['return'];
+	    if (returnMethod !== undefined) { anObject(returnMethod.call(iterator)); }
+	    throw error;
+	  }
+	};
+
+	var iterate_1 = createCommonjsModule(function (module) {
+	var Result = function (stopped, result) {
+	  this.stopped = stopped;
+	  this.result = result;
+	};
+
+	var iterate = module.exports = function (iterable, fn, that, AS_ENTRIES, IS_ITERATOR) {
+	  var boundFunction = bindContext(fn, that, AS_ENTRIES ? 2 : 1);
+	  var iterator, iterFn, index, length, result, step;
+
+	  if (IS_ITERATOR) {
+	    iterator = iterable;
+	  } else {
+	    iterFn = getIteratorMethod(iterable);
+	    if (typeof iterFn != 'function') { throw TypeError('Target is not iterable'); }
+	    // optimisation for array iterators
+	    if (isArrayIteratorMethod(iterFn)) {
+	      for (index = 0, length = toLength(iterable.length); length > index; index++) {
+	        result = AS_ENTRIES
+	          ? boundFunction(anObject(step = iterable[index])[0], step[1])
+	          : boundFunction(iterable[index]);
+	        if (result && result instanceof Result) { return result; }
+	      } return new Result(false);
+	    }
+	    iterator = iterFn.call(iterable);
+	  }
+
+	  while (!(step = iterator.next()).done) {
+	    result = callWithSafeIterationClosing(iterator, boundFunction, step.value, AS_ENTRIES);
+	    if (result && result instanceof Result) { return result; }
+	  } return new Result(false);
+	};
+
+	iterate.stop = function (result) {
+	  return new Result(true, result);
+	};
+	});
+
+	var anInstance = function (it, Constructor, name) {
+	  if (!(it instanceof Constructor)) {
+	    throw TypeError('Incorrect ' + (name ? name + ' ' : '') + 'invocation');
+	  } return it;
+	};
+
+	var ITERATOR$4 = wellKnownSymbol('iterator');
+	var SAFE_CLOSING = false;
+
+	try {
+	  var called = 0;
+	  var iteratorWithReturn = {
+	    next: function () {
+	      return { done: !!called++ };
+	    },
+	    'return': function () {
+	      SAFE_CLOSING = true;
+	    }
+	  };
+	  iteratorWithReturn[ITERATOR$4] = function () {
+	    return this;
+	  };
+	  // eslint-disable-next-line no-throw-literal
+	  Array.from(iteratorWithReturn, function () { throw 2; });
+	} catch (error) { /* empty */ }
+
+	var checkCorrectnessOfIteration = function (exec, SKIP_CLOSING) {
+	  if (!SKIP_CLOSING && !SAFE_CLOSING) { return false; }
+	  var ITERATION_SUPPORT = false;
+	  try {
+	    var object = {};
+	    object[ITERATOR$4] = function () {
+	      return {
+	        next: function () {
+	          return { done: ITERATION_SUPPORT = true };
+	        }
+	      };
+	    };
+	    exec(object);
+	  } catch (error) { /* empty */ }
+	  return ITERATION_SUPPORT;
+	};
+
+	// makes subclassing work correct for wrapped built-ins
+	var inheritIfRequired = function ($this, dummy, Wrapper) {
+	  var NewTarget, NewTargetPrototype;
+	  if (
+	    // it can work only with native `setPrototypeOf`
+	    objectSetPrototypeOf &&
+	    // we haven't completely correct pre-ES6 way for getting `new.target`, so use this
+	    typeof (NewTarget = dummy.constructor) == 'function' &&
+	    NewTarget !== Wrapper &&
+	    isObject(NewTargetPrototype = NewTarget.prototype) &&
+	    NewTargetPrototype !== Wrapper.prototype
+	  ) { objectSetPrototypeOf($this, NewTargetPrototype); }
+	  return $this;
+	};
+
+	var collection = function (CONSTRUCTOR_NAME, wrapper, common, IS_MAP, IS_WEAK) {
+	  var NativeConstructor = global_1[CONSTRUCTOR_NAME];
+	  var NativePrototype = NativeConstructor && NativeConstructor.prototype;
+	  var Constructor = NativeConstructor;
+	  var ADDER = IS_MAP ? 'set' : 'add';
+	  var exported = {};
+
+	  var fixMethod = function (KEY) {
+	    var nativeMethod = NativePrototype[KEY];
+	    redefine(NativePrototype, KEY,
+	      KEY == 'add' ? function add(value) {
+	        nativeMethod.call(this, value === 0 ? 0 : value);
+	        return this;
+	      } : KEY == 'delete' ? function (key) {
+	        return IS_WEAK && !isObject(key) ? false : nativeMethod.call(this, key === 0 ? 0 : key);
+	      } : KEY == 'get' ? function get(key) {
+	        return IS_WEAK && !isObject(key) ? undefined : nativeMethod.call(this, key === 0 ? 0 : key);
+	      } : KEY == 'has' ? function has(key) {
+	        return IS_WEAK && !isObject(key) ? false : nativeMethod.call(this, key === 0 ? 0 : key);
+	      } : function set(key, value) {
+	        nativeMethod.call(this, key === 0 ? 0 : key, value);
+	        return this;
+	      }
+	    );
+	  };
+
+	  // eslint-disable-next-line max-len
+	  if (isForced_1(CONSTRUCTOR_NAME, typeof NativeConstructor != 'function' || !(IS_WEAK || NativePrototype.forEach && !fails(function () {
+	    new NativeConstructor().entries().next();
+	  })))) {
+	    // create collection constructor
+	    Constructor = common.getConstructor(wrapper, CONSTRUCTOR_NAME, IS_MAP, ADDER);
+	    internalMetadata.REQUIRED = true;
+	  } else if (isForced_1(CONSTRUCTOR_NAME, true)) {
+	    var instance = new Constructor();
+	    // early implementations not supports chaining
+	    var HASNT_CHAINING = instance[ADDER](IS_WEAK ? {} : -0, 1) != instance;
+	    // V8 ~ Chromium 40- weak-collections throws on primitives, but should return false
+	    var THROWS_ON_PRIMITIVES = fails(function () { instance.has(1); });
+	    // most early implementations doesn't supports iterables, most modern - not close it correctly
+	    // eslint-disable-next-line no-new
+	    var ACCEPT_ITERABLES = checkCorrectnessOfIteration(function (iterable) { new NativeConstructor(iterable); });
+	    // for early implementations -0 and +0 not the same
+	    var BUGGY_ZERO = !IS_WEAK && fails(function () {
+	      // V8 ~ Chromium 42- fails only with 5+ elements
+	      var $instance = new NativeConstructor();
+	      var index = 5;
+	      while (index--) { $instance[ADDER](index, index); }
+	      return !$instance.has(-0);
+	    });
+
+	    if (!ACCEPT_ITERABLES) {
+	      Constructor = wrapper(function (dummy, iterable) {
+	        anInstance(dummy, Constructor, CONSTRUCTOR_NAME);
+	        var that = inheritIfRequired(new NativeConstructor(), dummy, Constructor);
+	        if (iterable != undefined) { iterate_1(iterable, that[ADDER], that, IS_MAP); }
+	        return that;
+	      });
+	      Constructor.prototype = NativePrototype;
+	      NativePrototype.constructor = Constructor;
+	    }
+
+	    if (THROWS_ON_PRIMITIVES || BUGGY_ZERO) {
+	      fixMethod('delete');
+	      fixMethod('has');
+	      IS_MAP && fixMethod('get');
+	    }
+
+	    if (BUGGY_ZERO || HASNT_CHAINING) { fixMethod(ADDER); }
+
+	    // weak collections should not contains .clear method
+	    if (IS_WEAK && NativePrototype.clear) { delete NativePrototype.clear; }
+	  }
+
+	  exported[CONSTRUCTOR_NAME] = Constructor;
+	  _export({ global: true, forced: Constructor != NativeConstructor }, exported);
+
+	  setToStringTag(Constructor, CONSTRUCTOR_NAME);
+
+	  if (!IS_WEAK) { common.setStrong(Constructor, CONSTRUCTOR_NAME, IS_MAP); }
+
+	  return Constructor;
+	};
+
+	var redefineAll = function (target, src, options) {
+	  for (var key in src) { redefine(target, key, src[key], options); }
+	  return target;
+	};
+
+	var SPECIES$1 = wellKnownSymbol('species');
+
+	var setSpecies = function (CONSTRUCTOR_NAME) {
+	  var Constructor = getBuiltIn(CONSTRUCTOR_NAME);
+	  var defineProperty = objectDefineProperty.f;
+
+	  if (descriptors && Constructor && !Constructor[SPECIES$1]) {
+	    defineProperty(Constructor, SPECIES$1, {
+	      configurable: true,
+	      get: function () { return this; }
+	    });
+	  }
+	};
+
+	var defineProperty$2 = objectDefineProperty.f;
+
+
+
+
+
+
+
+
+	var fastKey = internalMetadata.fastKey;
+
+
+	var setInternalState$2 = internalState.set;
+	var internalStateGetterFor = internalState.getterFor;
+
+	var collectionStrong = {
+	  getConstructor: function (wrapper, CONSTRUCTOR_NAME, IS_MAP, ADDER) {
+	    var C = wrapper(function (that, iterable) {
+	      anInstance(that, C, CONSTRUCTOR_NAME);
+	      setInternalState$2(that, {
+	        type: CONSTRUCTOR_NAME,
+	        index: objectCreate(null),
+	        first: undefined,
+	        last: undefined,
+	        size: 0
+	      });
+	      if (!descriptors) { that.size = 0; }
+	      if (iterable != undefined) { iterate_1(iterable, that[ADDER], that, IS_MAP); }
+	    });
+
+	    var getInternalState = internalStateGetterFor(CONSTRUCTOR_NAME);
+
+	    var define = function (that, key, value) {
+	      var state = getInternalState(that);
+	      var entry = getEntry(that, key);
+	      var previous, index;
+	      // change existing entry
+	      if (entry) {
+	        entry.value = value;
+	      // create new entry
+	      } else {
+	        state.last = entry = {
+	          index: index = fastKey(key, true),
+	          key: key,
+	          value: value,
+	          previous: previous = state.last,
+	          next: undefined,
+	          removed: false
+	        };
+	        if (!state.first) { state.first = entry; }
+	        if (previous) { previous.next = entry; }
+	        if (descriptors) { state.size++; }
+	        else { that.size++; }
+	        // add to index
+	        if (index !== 'F') { state.index[index] = entry; }
+	      } return that;
+	    };
+
+	    var getEntry = function (that, key) {
+	      var state = getInternalState(that);
+	      // fast case
+	      var index = fastKey(key);
+	      var entry;
+	      if (index !== 'F') { return state.index[index]; }
+	      // frozen object case
+	      for (entry = state.first; entry; entry = entry.next) {
+	        if (entry.key == key) { return entry; }
+	      }
+	    };
+
+	    redefineAll(C.prototype, {
+	      // 23.1.3.1 Map.prototype.clear()
+	      // 23.2.3.2 Set.prototype.clear()
+	      clear: function clear() {
+	        var that = this;
+	        var state = getInternalState(that);
+	        var data = state.index;
+	        var entry = state.first;
+	        while (entry) {
+	          entry.removed = true;
+	          if (entry.previous) { entry.previous = entry.previous.next = undefined; }
+	          delete data[entry.index];
+	          entry = entry.next;
+	        }
+	        state.first = state.last = undefined;
+	        if (descriptors) { state.size = 0; }
+	        else { that.size = 0; }
+	      },
+	      // 23.1.3.3 Map.prototype.delete(key)
+	      // 23.2.3.4 Set.prototype.delete(value)
+	      'delete': function (key) {
+	        var that = this;
+	        var state = getInternalState(that);
+	        var entry = getEntry(that, key);
+	        if (entry) {
+	          var next = entry.next;
+	          var prev = entry.previous;
+	          delete state.index[entry.index];
+	          entry.removed = true;
+	          if (prev) { prev.next = next; }
+	          if (next) { next.previous = prev; }
+	          if (state.first == entry) { state.first = next; }
+	          if (state.last == entry) { state.last = prev; }
+	          if (descriptors) { state.size--; }
+	          else { that.size--; }
+	        } return !!entry;
+	      },
+	      // 23.2.3.6 Set.prototype.forEach(callbackfn, thisArg = undefined)
+	      // 23.1.3.5 Map.prototype.forEach(callbackfn, thisArg = undefined)
+	      forEach: function forEach(callbackfn /* , that = undefined */) {
+	        var state = getInternalState(this);
+	        var boundFunction = bindContext(callbackfn, arguments.length > 1 ? arguments[1] : undefined, 3);
+	        var entry;
+	        while (entry = entry ? entry.next : state.first) {
+	          boundFunction(entry.value, entry.key, this);
+	          // revert to the last existing entry
+	          while (entry && entry.removed) { entry = entry.previous; }
+	        }
+	      },
+	      // 23.1.3.7 Map.prototype.has(key)
+	      // 23.2.3.7 Set.prototype.has(value)
+	      has: function has(key) {
+	        return !!getEntry(this, key);
+	      }
+	    });
+
+	    redefineAll(C.prototype, IS_MAP ? {
+	      // 23.1.3.6 Map.prototype.get(key)
+	      get: function get(key) {
+	        var entry = getEntry(this, key);
+	        return entry && entry.value;
+	      },
+	      // 23.1.3.9 Map.prototype.set(key, value)
+	      set: function set(key, value) {
+	        return define(this, key === 0 ? 0 : key, value);
+	      }
+	    } : {
+	      // 23.2.3.1 Set.prototype.add(value)
+	      add: function add(value) {
+	        return define(this, value = value === 0 ? 0 : value, value);
+	      }
+	    });
+	    if (descriptors) { defineProperty$2(C.prototype, 'size', {
+	      get: function () {
+	        return getInternalState(this).size;
+	      }
+	    }); }
+	    return C;
+	  },
+	  setStrong: function (C, CONSTRUCTOR_NAME, IS_MAP) {
+	    var ITERATOR_NAME = CONSTRUCTOR_NAME + ' Iterator';
+	    var getInternalCollectionState = internalStateGetterFor(CONSTRUCTOR_NAME);
+	    var getInternalIteratorState = internalStateGetterFor(ITERATOR_NAME);
+	    // add .keys, .values, .entries, [@@iterator]
+	    // 23.1.3.4, 23.1.3.8, 23.1.3.11, 23.1.3.12, 23.2.3.5, 23.2.3.8, 23.2.3.10, 23.2.3.11
+	    defineIterator(C, CONSTRUCTOR_NAME, function (iterated, kind) {
+	      setInternalState$2(this, {
+	        type: ITERATOR_NAME,
+	        target: iterated,
+	        state: getInternalCollectionState(iterated),
+	        kind: kind,
+	        last: undefined
+	      });
+	    }, function () {
+	      var state = getInternalIteratorState(this);
+	      var kind = state.kind;
+	      var entry = state.last;
+	      // revert to the last existing entry
+	      while (entry && entry.removed) { entry = entry.previous; }
+	      // get next entry
+	      if (!state.target || !(state.last = entry = entry ? entry.next : state.state.first)) {
+	        // or finish the iteration
+	        state.target = undefined;
+	        return { value: undefined, done: true };
+	      }
+	      // return step by kind
+	      if (kind == 'keys') { return { value: entry.key, done: false }; }
+	      if (kind == 'values') { return { value: entry.value, done: false }; }
+	      return { value: [entry.key, entry.value], done: false };
+	    }, IS_MAP ? 'entries' : 'values', !IS_MAP, true);
+
+	    // add [@@species], 23.1.2.2, 23.2.2.2
+	    setSpecies(CONSTRUCTOR_NAME);
+	  }
+	};
+
+	// `Map` constructor
+	// https://tc39.github.io/ecma262/#sec-map-objects
+	var es_map = collection('Map', function (get) {
+	  return function Map() { return get(this, arguments.length ? arguments[0] : undefined); };
+	}, collectionStrong, true);
 
 	var nativeGetOwnPropertyDescriptor$2 = objectGetOwnPropertyDescriptor.f;
 
@@ -1335,13 +1861,13 @@
 
 
 	var STRING_ITERATOR = 'String Iterator';
-	var setInternalState$2 = internalState.set;
+	var setInternalState$3 = internalState.set;
 	var getInternalState$2 = internalState.getterFor(STRING_ITERATOR);
 
 	// `String.prototype[@@iterator]` method
 	// https://tc39.github.io/ecma262/#sec-string.prototype-@@iterator
 	defineIterator(String, 'String', function (iterated) {
-	  setInternalState$2(this, {
+	  setInternalState$3(this, {
 	    type: STRING_ITERATOR,
 	    string: String(iterated),
 	    index: 0
@@ -1427,7 +1953,7 @@
 
 	var regexpExec = patchedExec;
 
-	var SPECIES$1 = wellKnownSymbol('species');
+	var SPECIES$2 = wellKnownSymbol('species');
 
 	var REPLACE_SUPPORTS_NAMED_GROUPS = !fails(function () {
 	  // #replace needs built-in support for named groups.
@@ -1472,7 +1998,7 @@
 	      // RegExp[@@split] doesn't call the regex's exec method, but first creates
 	      // a new one. We need to return the patched regex when creating the new one.
 	      re.constructor = {};
-	      re.constructor[SPECIES$1] = function () { return re; };
+	      re.constructor[SPECIES$2] = function () { return re; };
 	    }
 
 	    re[SYMBOL]('');
@@ -1523,14 +2049,14 @@
 	  return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : classofRaw(it) == 'RegExp');
 	};
 
-	var SPECIES$2 = wellKnownSymbol('species');
+	var SPECIES$3 = wellKnownSymbol('species');
 
 	// `SpeciesConstructor` abstract operation
 	// https://tc39.github.io/ecma262/#sec-speciesconstructor
 	var speciesConstructor = function (O, defaultConstructor) {
 	  var C = anObject(O).constructor;
 	  var S;
-	  return C === undefined || (S = anObject(C)[SPECIES$2]) == undefined ? defaultConstructor : aFunction$1(S);
+	  return C === undefined || (S = anObject(C)[SPECIES$3]) == undefined ? defaultConstructor : aFunction$1(S);
 	};
 
 	var charAt$1 = stringMultibyte.charAt;
@@ -1719,8 +2245,8 @@
 	  TouchList: 0
 	};
 
-	var ITERATOR$2 = wellKnownSymbol('iterator');
-	var TO_STRING_TAG$1 = wellKnownSymbol('toStringTag');
+	var ITERATOR$5 = wellKnownSymbol('iterator');
+	var TO_STRING_TAG$2 = wellKnownSymbol('toStringTag');
 	var ArrayValues = es_array_iterator.values;
 
 	for (var COLLECTION_NAME in domIterables) {
@@ -1728,12 +2254,12 @@
 	  var CollectionPrototype = Collection && Collection.prototype;
 	  if (CollectionPrototype) {
 	    // some Chrome versions have non-configurable methods on DOMTokenList
-	    if (CollectionPrototype[ITERATOR$2] !== ArrayValues) { try {
-	      hide(CollectionPrototype, ITERATOR$2, ArrayValues);
+	    if (CollectionPrototype[ITERATOR$5] !== ArrayValues) { try {
+	      hide(CollectionPrototype, ITERATOR$5, ArrayValues);
 	    } catch (error) {
-	      CollectionPrototype[ITERATOR$2] = ArrayValues;
+	      CollectionPrototype[ITERATOR$5] = ArrayValues;
 	    } }
-	    if (!CollectionPrototype[TO_STRING_TAG$1]) { hide(CollectionPrototype, TO_STRING_TAG$1, COLLECTION_NAME); }
+	    if (!CollectionPrototype[TO_STRING_TAG$2]) { hide(CollectionPrototype, TO_STRING_TAG$2, COLLECTION_NAME); }
 	    if (domIterables[COLLECTION_NAME]) { for (var METHOD_NAME in es_array_iterator) {
 	      // some Chrome versions have non-configurable methods on DOMTokenList
 	      if (CollectionPrototype[METHOD_NAME] !== es_array_iterator[METHOD_NAME]) { try {
@@ -4182,11 +4708,11 @@
 		f: f$6$1
 	};
 
-	var defineProperty$2 = objectDefineProperty$1.f;
+	var defineProperty$3 = objectDefineProperty$1.f;
 
 	var defineWellKnownSymbol$1 = function (NAME) {
 	  var Symbol = path$1.Symbol || (path$1.Symbol = {});
-	  if (!has$5(Symbol, NAME)) { defineProperty$2(Symbol, NAME, {
+	  if (!has$5(Symbol, NAME)) { defineProperty$3(Symbol, NAME, {
 	    value: wrappedWellKnownSymbol$1.f(NAME)
 	  }); }
 	};
@@ -4195,11 +4721,11 @@
 
 
 
-	var TO_STRING_TAG$2 = wellKnownSymbol$1('toStringTag');
+	var TO_STRING_TAG$3 = wellKnownSymbol$1('toStringTag');
 
 	var setToStringTag$1 = function (it, TAG, STATIC) {
-	  if (it && !has$5(it = STATIC ? it : it.prototype, TO_STRING_TAG$2)) {
-	    defineProperty$1$1(it, TO_STRING_TAG$2, { configurable: true, value: TAG });
+	  if (it && !has$5(it = STATIC ? it : it.prototype, TO_STRING_TAG$3)) {
+	    defineProperty$1$1(it, TO_STRING_TAG$3, { configurable: true, value: TAG });
 	  }
 	};
 
@@ -4232,7 +4758,7 @@
 	  };
 	};
 
-	var SPECIES$3 = wellKnownSymbol$1('species');
+	var SPECIES$4 = wellKnownSymbol$1('species');
 
 	// `ArraySpeciesCreate` abstract operation
 	// https://tc39.github.io/ecma262/#sec-arrayspeciescreate
@@ -4243,7 +4769,7 @@
 	    // cross-realm fallback
 	    if (typeof C == 'function' && (C === Array || isArray$3(C.prototype))) { C = undefined; }
 	    else if (isObject$1(C)) {
-	      C = C[SPECIES$3];
+	      C = C[SPECIES$4];
 	      if (C === null) { C = undefined; }
 	    }
 	  } return new (C === undefined ? Array : C)(length === 0 ? 0 : length);
@@ -4315,7 +4841,7 @@
 	var SYMBOL$1 = 'Symbol';
 	var PROTOTYPE$1$1 = 'prototype';
 	var TO_PRIMITIVE$1 = wellKnownSymbol$1('toPrimitive');
-	var setInternalState$3 = internalState$1.set;
+	var setInternalState$4 = internalState$1.set;
 	var getInternalState$3 = internalState$1.getterFor(SYMBOL$1);
 	var ObjectPrototype$2 = Object[PROTOTYPE$1$1];
 	var $Symbol$1 = global_1$1.Symbol;
@@ -4350,7 +4876,7 @@
 
 	var wrap$1 = function (tag, description) {
 	  var symbol = AllSymbols$1[tag] = objectCreate$1($Symbol$1[PROTOTYPE$1$1]);
-	  setInternalState$3(symbol, {
+	  setInternalState$4(symbol, {
 	    type: SYMBOL$1,
 	    tag: tag,
 	    description: description
@@ -4628,23 +5154,23 @@
 
 	var TO_STRING_TAG$1$1 = wellKnownSymbol$1('toStringTag');
 	// ES3 wrong here
-	var CORRECT_ARGUMENTS = classofRaw$1(function () { return arguments; }()) == 'Arguments';
+	var CORRECT_ARGUMENTS$1 = classofRaw$1(function () { return arguments; }()) == 'Arguments';
 
 	// fallback for IE11 Script Access Denied error
-	var tryGet = function (it, key) {
+	var tryGet$1 = function (it, key) {
 	  try {
 	    return it[key];
 	  } catch (error) { /* empty */ }
 	};
 
 	// getting tag from ES6+ `Object.prototype.toString`
-	var classof = function (it) {
+	var classof$1 = function (it) {
 	  var O, tag, result;
 	  return it === undefined ? 'Undefined' : it === null ? 'Null'
 	    // @@toStringTag case
-	    : typeof (tag = tryGet(O = Object(it), TO_STRING_TAG$1$1)) == 'string' ? tag
+	    : typeof (tag = tryGet$1(O = Object(it), TO_STRING_TAG$1$1)) == 'string' ? tag
 	    // builtinTag case
-	    : CORRECT_ARGUMENTS ? classofRaw$1(O)
+	    : CORRECT_ARGUMENTS$1 ? classofRaw$1(O)
 	    // ES3 arguments fallback
 	    : (result = classofRaw$1(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : result;
 	};
@@ -4657,7 +5183,7 @@
 	// `Object.prototype.toString` method implementation
 	// https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 	var objectToString = String(test) !== '[object z]' ? function toString() {
-	  return '[object ' + classof(this) + ']';
+	  return '[object ' + classof$1(this) + ']';
 	} : test.toString;
 
 	var ObjectPrototype$1$1 = Object.prototype;
@@ -4670,14 +5196,14 @@
 
 	var nativePromiseConstructor = global_1$1.Promise;
 
-	var redefineAll = function (target, src, options) {
+	var redefineAll$1 = function (target, src, options) {
 	  for (var key in src) { redefine$1(target, key, src[key], options); }
 	  return target;
 	};
 
 	var SPECIES$1$1 = wellKnownSymbol$1('species');
 
-	var setSpecies = function (CONSTRUCTOR_NAME) {
+	var setSpecies$1 = function (CONSTRUCTOR_NAME) {
 	  var Constructor = getBuiltIn$1(CONSTRUCTOR_NAME);
 	  var defineProperty = objectDefineProperty$1.f;
 
@@ -4689,32 +5215,32 @@
 	  }
 	};
 
-	var anInstance = function (it, Constructor, name) {
+	var anInstance$1 = function (it, Constructor, name) {
 	  if (!(it instanceof Constructor)) {
 	    throw TypeError('Incorrect ' + (name ? name + ' ' : '') + 'invocation');
 	  } return it;
 	};
 
-	var iterators = {};
+	var iterators$1 = {};
 
-	var ITERATOR$3 = wellKnownSymbol$1('iterator');
-	var ArrayPrototype$1 = Array.prototype;
+	var ITERATOR$6 = wellKnownSymbol$1('iterator');
+	var ArrayPrototype$2 = Array.prototype;
 
 	// check on default Array iterator
-	var isArrayIteratorMethod = function (it) {
-	  return it !== undefined && (iterators.Array === it || ArrayPrototype$1[ITERATOR$3] === it);
+	var isArrayIteratorMethod$1 = function (it) {
+	  return it !== undefined && (iterators$1.Array === it || ArrayPrototype$2[ITERATOR$6] === it);
 	};
 
 	var ITERATOR$1$1 = wellKnownSymbol$1('iterator');
 
-	var getIteratorMethod = function (it) {
+	var getIteratorMethod$1 = function (it) {
 	  if (it != undefined) { return it[ITERATOR$1$1]
 	    || it['@@iterator']
-	    || iterators[classof(it)]; }
+	    || iterators$1[classof$1(it)]; }
 	};
 
 	// call something on iterator step with safe closing on error
-	var callWithSafeIterationClosing = function (iterator, fn, value, ENTRIES) {
+	var callWithSafeIterationClosing$1 = function (iterator, fn, value, ENTRIES) {
 	  try {
 	    return ENTRIES ? fn(anObject$1(value)[0], value[1]) : fn(value);
 	  // 7.4.6 IteratorClose(iterator, completion)
@@ -4725,7 +5251,7 @@
 	  }
 	};
 
-	var iterate_1 = createCommonjsModule$1(function (module) {
+	var iterate_1$1 = createCommonjsModule$1(function (module) {
 	var Result = function (stopped, result) {
 	  this.stopped = stopped;
 	  this.result = result;
@@ -4738,10 +5264,10 @@
 	  if (IS_ITERATOR) {
 	    iterator = iterable;
 	  } else {
-	    iterFn = getIteratorMethod(iterable);
+	    iterFn = getIteratorMethod$1(iterable);
 	    if (typeof iterFn != 'function') { throw TypeError('Target is not iterable'); }
 	    // optimisation for array iterators
-	    if (isArrayIteratorMethod(iterFn)) {
+	    if (isArrayIteratorMethod$1(iterFn)) {
 	      for (index = 0, length = toLength$1(iterable.length); length > index; index++) {
 	        result = AS_ENTRIES
 	          ? boundFunction(anObject$1(step = iterable[index])[0], step[1])
@@ -4753,7 +5279,7 @@
 	  }
 
 	  while (!(step = iterator.next()).done) {
-	    result = callWithSafeIterationClosing(iterator, boundFunction, step.value, AS_ENTRIES);
+	    result = callWithSafeIterationClosing$1(iterator, boundFunction, step.value, AS_ENTRIES);
 	    if (result && result instanceof Result) { return result; }
 	  } return new Result(false);
 	};
@@ -4764,27 +5290,27 @@
 	});
 
 	var ITERATOR$2$1 = wellKnownSymbol$1('iterator');
-	var SAFE_CLOSING = false;
+	var SAFE_CLOSING$1 = false;
 
 	try {
-	  var called = 0;
-	  var iteratorWithReturn = {
+	  var called$1 = 0;
+	  var iteratorWithReturn$1 = {
 	    next: function () {
-	      return { done: !!called++ };
+	      return { done: !!called$1++ };
 	    },
 	    'return': function () {
-	      SAFE_CLOSING = true;
+	      SAFE_CLOSING$1 = true;
 	    }
 	  };
-	  iteratorWithReturn[ITERATOR$2$1] = function () {
+	  iteratorWithReturn$1[ITERATOR$2$1] = function () {
 	    return this;
 	  };
 	  // eslint-disable-next-line no-throw-literal
-	  Array.from(iteratorWithReturn, function () { throw 2; });
+	  Array.from(iteratorWithReturn$1, function () { throw 2; });
 	} catch (error) { /* empty */ }
 
-	var checkCorrectnessOfIteration = function (exec, SKIP_CLOSING) {
-	  if (!SKIP_CLOSING && !SAFE_CLOSING) { return false; }
+	var checkCorrectnessOfIteration$1 = function (exec, SKIP_CLOSING) {
+	  if (!SKIP_CLOSING && !SAFE_CLOSING$1) { return false; }
 	  var ITERATION_SUPPORT = false;
 	  try {
 	    var object = {};
@@ -5083,7 +5609,7 @@
 	    && userAgent.indexOf('Chrome/66') === -1);
 	});
 
-	var INCORRECT_ITERATION = FORCED$1 || !checkCorrectnessOfIteration(function (iterable) {
+	var INCORRECT_ITERATION = FORCED$1 || !checkCorrectnessOfIteration$1(function (iterable) {
 	  PromiseConstructor.all(iterable)['catch'](function () { /* empty */ });
 	});
 
@@ -5232,7 +5758,7 @@
 	if (FORCED$1) {
 	  // 25.4.3.1 Promise(executor)
 	  PromiseConstructor = function Promise(executor) {
-	    anInstance(this, PromiseConstructor, PROMISE);
+	    anInstance$1(this, PromiseConstructor, PROMISE);
 	    aFunction$1$1(executor);
 	    Internal.call(this);
 	    var state = getInternalState$1$1(this);
@@ -5255,7 +5781,7 @@
 	      value: undefined
 	    });
 	  };
-	  Internal.prototype = redefineAll(PromiseConstructor.prototype, {
+	  Internal.prototype = redefineAll$1(PromiseConstructor.prototype, {
 	    // `Promise.prototype.then` method
 	    // https://tc39.github.io/ecma262/#sec-promise.prototype.then
 	    then: function then(onFulfilled, onRejected) {
@@ -5314,7 +5840,7 @@
 	});
 
 	setToStringTag$1(PromiseConstructor, PROMISE, false);
-	setSpecies(PROMISE);
+	setSpecies$1(PROMISE);
 
 	PromiseWrapper = path$1[PROMISE];
 
@@ -5350,7 +5876,7 @@
 	      var values = [];
 	      var counter = 0;
 	      var remaining = 1;
-	      iterate_1(iterable, function (promise) {
+	      iterate_1$1(iterable, function (promise) {
 	        var index = counter++;
 	        var alreadyCalled = false;
 	        values.push(undefined);
@@ -5375,7 +5901,7 @@
 	    var reject = capability.reject;
 	    var result = perform(function () {
 	      var $promiseResolve = aFunction$1$1(C.resolve);
-	      iterate_1(iterable, function (promise) {
+	      iterate_1$1(iterable, function (promise) {
 	        $promiseResolve.call(C, promise).then(capability.resolve, reject);
 	      });
 	    });
@@ -5902,6 +6428,7 @@
 
 	var PENDING$1 = new Promise(function () {});
 	var cacheDB = null;
+	var loadingMap = new Map();
 	var requestMap = {
 	  requests: {},
 	  save: function save(key, cancel) {
@@ -5938,16 +6465,36 @@
 
 	  var mergeOption = _objectSpread({}, defaultOption, {}, option);
 
+	  var isLoading = false;
+
+	  var showLoading = function showLoading(req) {
+	    loadingMap.set(req, true);
+
+	    if (!isLoading) {
+	      isLoading = true;
+	      mergeOption.showLoading(req);
+	    }
+	  };
+
+	  var hideLoading = function hideLoading(req) {
+	    loadingMap.delete(req);
+
+	    if (!loadingMap.size) {
+	      isLoading = false;
+	      mergeOption.hideLoading(req);
+	    }
+	  };
+
 	  cacheDB = new default_1('tops-ajax', 'pkg', 'requestmd5');
 
 	  var preCheckCode = function preCheckCode(response, opt, indicator) {
 	    // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
 	    // cache和interface为falsely的值时，说明是该组请求第一次执行回调
 	    if (indicator && !indicator.cache && !indicator.interface) {
-	      mergeOption.hideLoading(opt);
+	      hideLoading(opt);
 	    } else {
 	      // 正常流程
-	      mergeOption.hideLoading(opt);
+	      hideLoading(opt);
 	    }
 
 	    if (response.request && response.request.responseType === 'blob') {
@@ -6003,8 +6550,6 @@
 	    }
 
 	    if (response.data && response.data.Message) {
-	      mergeOption.hideLoading(opt);
-
 	      if (opt.isHandleError) {
 	        return Promise.reject(response.data);
 	      }
@@ -6017,7 +6562,7 @@
 	  };
 
 	  var preReject = function preReject(err, opt) {
-	    mergeOption.hideLoading(opt); // 请求丢失时触发
+	    hideLoading(opt); // 请求丢失时触发
 
 	    var emptyError = {
 	      data: null
@@ -6032,13 +6577,12 @@
 	    }
 
 	    if (opt.isHandleError) {
-	      mergeOption.hideLoading(opt);
 	      return Promise.reject(response.data || {});
 	    }
 
 	    if (response.data && response.data.Message) {
 	      setTimeout(function () {
-	        mergeOption.hideLoading(opt);
+	        hideLoading(opt);
 	        mergeOption.errorMsgHandler(response.data.Message);
 	      }, 0);
 	      return Promise.resolve(null);
@@ -6046,7 +6590,7 @@
 
 	    if (err.message) {
 	      setTimeout(function () {
-	        mergeOption.hideLoading(opt);
+	        hideLoading(opt);
 	        mergeOption.errorMsgHandler(err.message);
 	      }, 0);
 	      return Promise.resolve(null);
@@ -6228,7 +6772,7 @@
 	              req = assignDeep(req, opt);
 
 	              if (opt.loading) {
-	                mergeOption.showLoading(req);
+	                showLoading(req);
 	              }
 
 	              if (req.concurrent === false) {
