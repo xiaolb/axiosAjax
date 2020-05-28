@@ -1,6 +1,6 @@
 /**
- * util/ajax v0.0.16
- * (c) 2019 xiekaifeng4042
+ * util/ajax v0.0.17
+ * (c) 2020 xiekaifeng4042
  */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('axios')) :
@@ -6991,11 +6991,14 @@
 	  var downloadFile = function downloadFile(opt, fileCfg) {
 	    if (!window) { return new Error('此方法依赖浏览器方法 window.URL.createObjectURL'); } // 下载文件是data字段，不是params字段
 
-	    opt.method = 'POST';
-	    opt.responseType = 'blob';
-	    opt.headers = {
-	      'Content-Type': 'blob'
+	    var defaultopt = {
+	      method: 'POST',
+	      responseType: 'blob',
+	      headers: {
+	        'Content-Type': 'blob'
+	      }
 	    };
+	    opt = Object.assign(defaultopt, opt);
 	    return common(opt).then(function (res) {
 	      if (!res) { return; }
 	      var resFileName = '';

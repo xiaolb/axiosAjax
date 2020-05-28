@@ -5,11 +5,11 @@ import createIndexDB, { TopsIndexDB } from '@util/indexdb';
 import { createAjaxOption, ajaxOption, emptyErrorProps, fileCfgProps, INDICATOR, AxiosRequestConfigMergeWithAjaxOption } from './types';
 import { queryStringify, assignDeep, deepEqual, isType, createMaybeAbort } from './utils';
 
-const loop = function(params: any) {
+const loop = function (params: any) {
     console.log(params);
 };
 
-const PENDING = new Promise(() => {});
+const PENDING = new Promise(() => { });
 
 let cacheDB: TopsIndexDB = null;
 const loadingMap = new Map();
@@ -32,7 +32,7 @@ const requestMap = {
 const getStoreKey = (opt: ajaxOption) =>
     hexMd5(
         `${opt.method}@${opt.baseURL}${opt.url}@ak=${opt.headers ? opt.headers.Authorization || '' : ''}@params=${
-            opt.params ? JSON.stringify(opt.params) : ''
+        opt.params ? JSON.stringify(opt.params) : ''
         }@data=${opt.data ? JSON.stringify(opt.data) : ''}`
     );
 
@@ -44,8 +44,8 @@ const createAjax = (option: createAjaxOption) => {
         errorMsgHandler: loop,
         requestConfig: {},
         projectName: '',
-        beforeRequestHandler: function(req: AxiosRequestConfig) {
-            return new Promise(function(resolve) {
+        beforeRequestHandler: function (req: AxiosRequestConfig) {
+            return new Promise(function (resolve) {
                 resolve(req);
             });
         },
@@ -70,7 +70,7 @@ const createAjax = (option: createAjaxOption) => {
         }
     };
     cacheDB = new createIndexDB('tops-ajax', 'pkg', 'requestmd5');
-    const preCheckCode = function(response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
+    const preCheckCode = function (response: any, opt: AxiosRequestConfigMergeWithAjaxOption, indicator: INDICATOR) {
         // 如果indicator存在则说明走的流程是：一次取indexdb，一次取接口
         // cache和interface为falsely的值时，说明是该组请求第一次执行回调
         if (indicator && !indicator.cache && !indicator.interface) {
@@ -87,7 +87,7 @@ const createAjax = (option: createAjaxOption) => {
             // 下载出现异常处理
             const reader = new FileReader();
             reader.readAsText(response.data, 'utf8');
-            reader.onload = function() {
+            reader.onload = function () {
                 if (this.result && typeof this.result === 'string' && !opt.isHandleError) {
                     if (this.result) return mergeOption.errorMsgHandler(JSON.parse(this.result).Message);
                 } else {
@@ -211,7 +211,7 @@ const createAjax = (option: createAjaxOption) => {
         let indicator: INDICATOR;
         let cancel: Canceler;
         let cancelCache: any;
-        const cancelToken = new axios.CancelToken(function(c: Canceler) {
+        const cancelToken = new axios.CancelToken(function (c: Canceler) {
             cancel = c;
         });
 
@@ -259,7 +259,7 @@ const createAjax = (option: createAjaxOption) => {
             common = cache_flow_common(indicator, beforeHandle); // normal_flow_common在走cache流程时必须能同步执行到这一步（关键）
             const { maybeAbort, abort } = createMaybeAbort();
             cancelCache = abort;
-            fn = function() {
+            fn = function () {
                 const { promise, abort: _abort } = maybeAbort(
                     (async () => {
                         let cacheData;
@@ -347,11 +347,14 @@ const createAjax = (option: createAjaxOption) => {
     const downloadFile = (opt: ajaxOption, fileCfg: fileCfgProps) => {
         if (!window) return new Error('此方法依赖浏览器方法 window.URL.createObjectURL');
         // 下载文件是data字段，不是params字段
-        opt.method = 'POST';
-        opt.responseType = 'blob';
-        opt.headers = {
-            'Content-Type': 'blob',
-        };
+        const defaultopt = {
+            method: 'POST',
+            responseType: 'blob',
+            headers: {
+                'Content-Type': 'blob',
+            }
+        }
+        opt = Object.assign(defaultopt, opt)
         return common(opt).then((res: AxiosResponse) => {
             if (!res) return;
             let resFileName = '';

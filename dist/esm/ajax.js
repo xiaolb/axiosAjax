@@ -591,11 +591,14 @@ var createAjax = function createAjax(option) {
   var downloadFile = function downloadFile(opt, fileCfg) {
     if (!window) return new Error('此方法依赖浏览器方法 window.URL.createObjectURL'); // 下载文件是data字段，不是params字段
 
-    opt.method = 'POST';
-    opt.responseType = 'blob';
-    opt.headers = {
-      'Content-Type': 'blob'
+    var defaultopt = {
+      method: 'POST',
+      responseType: 'blob',
+      headers: {
+        'Content-Type': 'blob'
+      }
     };
+    opt = Object.assign(defaultopt, opt);
     return common(opt).then(function (res) {
       if (!res) return;
       var resFileName = '';
